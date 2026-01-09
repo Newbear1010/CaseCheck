@@ -1,0 +1,7 @@
+{
+  "name": "Enterprise Case Management & Check-in System",
+  "description": "A high-density, policy-driven enterprise application for managing activities (cases) and attendee check-ins, featuring RBAC and explainable permissions.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
