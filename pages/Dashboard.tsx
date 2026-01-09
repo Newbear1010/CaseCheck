@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Role, CaseStatus } from '../types';
+import { Role, CaseStatus, ActivityCase } from '../types';
 import { 
   FileCheck, 
   Clock, 
@@ -9,11 +9,15 @@ import {
   ArrowRight,
   PlusCircle,
   Calendar,
-  // Add missing ShieldCheck import
   ShieldCheck
 } from 'lucide-react';
 
-export const Dashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {
+interface DashboardProps {
+  onNavigate: (page: string) => void;
+  onSelectCase: (activity: any) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }) => {
   const { user } = useAuth();
   
   const stats = [
@@ -22,10 +26,30 @@ export const Dashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ on
     { label: 'System Alerts', count: 0, icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-50' },
   ];
 
+  // Mock data for dashboard
   const recentActivities = [
-    { id: 'C-9021', title: 'Q3 Product Launch Event', status: CaseStatus.ONGOING, date: '2024-05-20' },
-    { id: 'C-9018', title: 'Internal Audit Seminar', status: CaseStatus.APPROVED, date: '2024-05-18' },
-    { id: 'C-8992', title: 'Community Outreach Program', status: CaseStatus.CLOSED, date: '2024-05-15' },
+    { 
+      id: 'C-9021', 
+      title: 'Q3 Product Launch Event', 
+      status: CaseStatus.ONGOING, 
+      date: '2024-05-20',
+      description: 'Global launch event for the new enterprise suite involving 200+ partners.',
+      creatorId: 'user-1',
+      riskLevel: 'MEDIUM',
+      members: ['user-1', 'user-2', 'user-3'],
+      location: 'Main Auditorium'
+    },
+    { 
+      id: 'C-9018', 
+      title: 'Internal Audit Seminar', 
+      status: CaseStatus.APPROVED, 
+      date: '2024-05-18',
+      description: 'Annual regulatory compliance check and training.',
+      creatorId: 'user-1',
+      riskLevel: 'LOW',
+      members: ['user-4'],
+      location: 'Conference Room A'
+    },
   ];
 
   return (
@@ -50,7 +74,6 @@ export const Dashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ on
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Task List */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
             <h2 className="font-bold text-lg text-slate-900">Recent Activities</h2>
@@ -63,9 +86,13 @@ export const Dashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ on
           </div>
           <div className="divide-y divide-slate-100">
             {recentActivities.map(activity => (
-              <div key={activity.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer">
+              <div 
+                key={activity.id} 
+                onClick={() => onSelectCase(activity)}
+                className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer group"
+              >
                 <div className="flex items-center space-x-4">
-                  <div className="bg-slate-100 p-2 rounded text-slate-500">
+                  <div className="bg-slate-100 p-2 rounded text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
                     <Calendar size={18} />
                   </div>
                   <div>
@@ -73,19 +100,21 @@ export const Dashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ on
                     <div className="text-xs text-slate-500">Case ID: {activity.id} • {activity.date}</div>
                   </div>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                  activity.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
-                  activity.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' :
-                  'bg-slate-100 text-slate-700'
-                }`}>
-                  {activity.status}
-                </span>
+                <div className="flex items-center space-x-3">
+                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                    activity.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
+                    activity.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-700'
+                  }`}>
+                    {activity.status}
+                  </span>
+                  <ArrowRight size={14} className="text-slate-300 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all" />
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Quick Actions / Notices */}
         <div className="space-y-6">
           <div className="bg-slate-900 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
             <div className="relative z-10">
@@ -100,7 +129,6 @@ export const Dashboard: React.FC<{ onNavigate: (page: string) => void }> = ({ on
               </button>
             </div>
             <div className="absolute top-0 right-0 p-8 opacity-10">
-              {/* ShieldCheck used here */}
               <ShieldCheck size={120} />
             </div>
           </div>

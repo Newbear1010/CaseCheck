@@ -20,6 +20,7 @@ export interface User {
   email: string;
   role: Role;
   department: string;
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface PolicyDecision {
@@ -28,16 +29,18 @@ export interface PolicyDecision {
   requiredRole?: Role;
 }
 
-export interface Visitor {
+export interface AttendanceRecord {
   id: string;
-  name: string;
-  company: string;
-  checkInTime: string;
+  userId?: string;
+  visitorName?: string;
+  type: 'MEMBER' | 'VISITOR';
+  timestamp: string;
+  location: string;
 }
 
 export interface ActivityCase {
   id: string;
-  parentId?: string; // Links to a rejected case if this is a re-submission
+  parentId?: string;
   title: string;
   description: string;
   status: CaseStatus;

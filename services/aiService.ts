@@ -1,15 +1,32 @@
-// AI functionality temporarily disabled for deployment
-// TODO: Implement backend API for secure AI integration
 
-export const analyzeActivityRisk = async (_title: string, _description: string) => {
-  // Return default response without AI call
-  return {
-    riskLevel: "MEDIUM",
-    reasoning: "AI analysis is currently disabled. Manual review required.",
-    suggestions: [
-      "Review activity details carefully",
-      "Ensure all safety protocols are followed",
-      "Consult with relevant stakeholders"
-    ]
-  };
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+export const analyzeActivityRisk = async (title: string, description: string) => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Analyze the risk of this corporate activity:
+      Title: ${title}
+      Description: ${description}
+      
+      Return a JSON with:
+      - riskLevel: "LOW" | "MEDIUM" | "HIGH"
+      - reasoning: string (brief)
+      - suggestions: string[] (how to mitigate risks)`,
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error("AI Analysis failed:", error);
+    return {
+      riskLevel: "MEDIUM",
+      reasoning: "Automated analysis unavailable. Manual review required.",
+      suggestions: ["Ensure all attendees follow standard safety protocols."]
+    };
+  }
 };

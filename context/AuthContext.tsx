@@ -17,10 +17,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const login = (role: Role) => {
+    // Added missing 'status' property to each mock user to match the User interface
     const mockUsers: Record<Role, User> = {
-      [Role.ADMIN]: { id: 'admin-1', name: 'Alex Admin', email: 'admin@corp.com', role: Role.ADMIN, department: 'IT Governance' },
-      [Role.USER]: { id: 'user-1', name: 'Jane User', email: 'jane@corp.com', role: Role.USER, department: 'Marketing' },
-      [Role.GUEST]: { id: 'guest-1', name: 'Guest Visitor', email: 'guest@external.com', role: Role.GUEST, department: 'Visitor' },
+      [Role.ADMIN]: { id: 'admin-1', name: 'Alex Admin', email: 'admin@corp.com', role: Role.ADMIN, department: 'IT Governance', status: 'ACTIVE' },
+      [Role.USER]: { id: 'user-1', name: 'Jane User', email: 'jane@corp.com', role: Role.USER, department: 'Marketing', status: 'ACTIVE' },
+      [Role.GUEST]: { id: 'guest-1', name: 'Guest Visitor', email: 'guest@external.com', role: Role.GUEST, department: 'Visitor', status: 'ACTIVE' },
     };
     setUser(mockUsers[role]);
   };

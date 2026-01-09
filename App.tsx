@@ -5,14 +5,17 @@ import { AppShell } from './components/AppShell';
 import { Dashboard } from './pages/Dashboard';
 import { ActivityWizard } from './pages/ActivityWizard';
 import { CaseDetail } from './pages/CaseDetail';
+import { ApprovalCenter } from './pages/ApprovalCenter';
+import { AdminSystem } from './pages/AdminSystem';
+import { AttendanceReport } from './pages/AttendanceReport';
 import { Role, ActivityCase, CaseStatus } from './types';
 import { ShieldCheck, ArrowRight, User as UserIcon, ShieldQuestion } from 'lucide-react';
 
 const MOCK_ACTIVITY: ActivityCase = {
   id: 'C-9021',
   title: 'Q3 Product Launch Event',
-  description: 'Global launch event for the new enterprise suite involving 200+ partners.',
-  status: CaseStatus.APPROVED,
+  description: 'Global launch event for the new enterprise suite involving 200+ partners. This event includes high-level stakeholders and requires strict security check-in protocols for all attendees.',
+  status: CaseStatus.ONGOING,
   creatorId: 'user-1',
   createdAt: '2024-05-01',
   startTime: '2024-05-20T09:00:00',
@@ -25,9 +28,9 @@ const MOCK_ACTIVITY: ActivityCase = {
 const REJECTED_ACTIVITY: ActivityCase = {
   id: 'C-8900',
   title: 'Internal Hackathon 2024',
-  description: 'Two-day internal development sprint for the R&D team.',
+  description: 'Two-day internal development sprint for the R&D team focused on AI innovations.',
   status: CaseStatus.REJECTED,
-  rejectionReason: 'The venue "Basement Lounge" does not meet current fire safety standards for 50+ people.',
+  rejectionReason: 'The venue "Basement Lounge" does not meet current fire safety standards for 50+ people. Please select an approved auditorium.',
   creatorId: 'user-1',
   createdAt: '2024-05-10',
   startTime: '2024-06-01T09:00:00',
@@ -41,7 +44,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-10">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 transform transition-all hover:scale-[1.01]">
         <div className="text-center mb-10">
           <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-blue-500/20">
             <ShieldCheck size={32} />
@@ -55,7 +58,7 @@ const LoginPage: React.FC = () => {
             { role: Role.USER, label: 'Employee Portal', icon: UserIcon, color: 'text-blue-600' },
             { role: Role.GUEST, label: 'Guest Terminal', icon: ShieldQuestion, color: 'text-slate-600' }
           ].map(item => (
-            <button key={item.role} onClick={() => login(item.role)} className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors group">
+            <button key={item.role} onClick={() => login(item.role)} className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all group hover:border-blue-200">
               <div className="flex items-center space-x-4">
                 <item.icon className={item.color} size={20} />
                 <span className="font-bold text-slate-900">{item.label}</span>
@@ -63,6 +66,9 @@ const LoginPage: React.FC = () => {
               <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-transform" />
             </button>
           ))}
+        </div>
+        <div className="mt-8 text-center">
+           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Secured by Enterprise Auth Engine</p>
         </div>
       </div>
     </div>
@@ -86,17 +92,24 @@ const MainRouter: React.FC = () => {
     setCurrentPage('create');
   };
 
+  const handleViewCase = (caseItem: ActivityCase) => {
+    setSelectedCase(caseItem);
+  };
+
   const renderPage = () => {
     if (selectedCase) return <CaseDetail activity={selectedCase} onBack={() => setSelectedCase(null)} onRemake={handleRemake} />;
 
     switch (currentPage) {
-      case 'dashboard': return <Dashboard onNavigate={handleNavigate} />;
+      case 'dashboard': return <Dashboard onNavigate={handleNavigate} onSelectCase={handleViewCase} />;
       case 'create': return <ActivityWizard onComplete={() => handleNavigate('activities')} baseCase={remakeBase} />;
       case 'activities': return (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-slate-900">Case Directory</h1>
-            <button onClick={() => setCurrentPage('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Create New Case</button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Case Directory</h1>
+              <p className="text-slate-500 text-sm">Centralized activity management and audit trails.</p>
+            </div>
+            <button onClick={() => setCurrentPage('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors">Create New Case</button>
           </div>
           <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-left">
@@ -105,15 +118,22 @@ const MainRouter: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {[MOCK_ACTIVITY, REJECTED_ACTIVITY].map(c => (
-                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        c.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'
+                        c.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' : 
+                        c.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' : 
+                        c.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
                       }`}>{c.status}</span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-slate-900">{c.title}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-900">{c.title}</div>
+                      <div className="text-[10px] text-slate-400 mono">ID: {c.id}</div>
+                    </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500">{c.riskLevel}</td>
-                    <td className="px-6 py-4 text-right"><button onClick={() => setSelectedCase(c)} className="text-blue-600 font-bold text-xs uppercase tracking-widest">View</button></td>
+                    <td className="px-6 py-4 text-right">
+                      <button onClick={() => setSelectedCase(c)} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">View Details</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -121,6 +141,10 @@ const MainRouter: React.FC = () => {
           </div>
         </div>
       );
+      case 'approvals': return <ApprovalCenter onViewCase={handleViewCase} />;
+      case 'reports': return <AttendanceReport />;
+      case 'settings':
+      case 'admin_users': return <AdminSystem />;
       default: return <div className="p-20 text-center text-slate-400">Section in development...</div>;
     }
   };
