@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -9,8 +9,12 @@ import {
   ShieldAlert, 
   Users, 
   Paperclip,
-  Sparkles
+  Sparkles,
+  AlertTriangle,
+  History
 } from 'lucide-react';
+import { analyzeActivityRisk } from '../services/aiService';
+import { ActivityCase } from '../types';
 
 const STEPS = [
   { id: 'info', title: 'Basic Info', icon: Info },
@@ -20,32 +24,50 @@ const STEPS = [
   { id: 'attachments', title: 'Attachments', icon: Paperclip },
 ];
 
-export const ActivityWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+interface WizardProps {
+  onComplete: () => void;
+  baseCase?: ActivityCase | null;
+}
+
+export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [formData, setFormData] = useState({ 
+    title: baseCase?.title || '', 
+    description: baseCase?.description || '' 
+  });
+  const [aiResult, setAiResult] = useState<any>(null);
 
   const next = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
   const back = () => setCurrentStep(prev => Math.max(prev - 1, 0));
 
-  const runAiAnalysis = () => {
+  const runAiAnalysis = async () => {
+    if (!formData.title || !formData.description) return;
     setIsAiAnalyzing(true);
-    setTimeout(() => setIsAiAnalyzing(false), 2000); // Simulate AI logic
+    const result = await analyzeActivityRisk(formData.title, formData.description);
+    setAiResult(result);
+    setIsAiAnalyzing(false);
   };
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Create New Case</h1>
-        <p className="text-slate-500">Initiate a structured activity case for governance and tracking.</p>
+        <h1 className="text-2xl font-bold text-slate-900">
+          {baseCase ? 'New Case from Archive' : 'Create New Case'}
+        </h1>
+        {baseCase && (
+          <div className="mt-2 flex items-center space-x-2 text-xs font-bold text-blue-600 bg-blue-50 w-fit px-3 py-1 rounded-full border border-blue-100">
+            <History size={14} />
+            <span>Referencing Rejected Case: {baseCase.id}</span>
+          </div>
+        )}
       </div>
 
-      {/* Stepper Header */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-8 flex justify-between overflow-x-auto no-scrollbar">
         {STEPS.map((step, idx) => {
           const Icon = step.icon;
           const isActive = idx === currentStep;
           const isDone = idx < currentStep;
-          
           return (
             <div key={step.id} className="flex items-center space-x-2 px-4 shrink-0">
               <div className={`
@@ -63,7 +85,6 @@ export const ActivityWizard: React.FC<{ onComplete: () => void }> = ({ onComplet
         })}
       </div>
 
-      {/* Form Area */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
         <div className="p-8 flex-1">
           {currentStep === 0 && (
@@ -72,24 +93,24 @@ export const ActivityWizard: React.FC<{ onComplete: () => void }> = ({ onComplet
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Case Title</label>
-                  <input type="text" placeholder="e.g., Annual Board Meeting 2024" className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500" />
+                  <input 
+                    type="text" 
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    placeholder="e.g., Annual Board Meeting 2024" 
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Scope & Purpose</label>
-                  <textarea rows={4} placeholder="Describe the objectives and business impact..." className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"></textarea>
+                  <textarea 
+                    rows={4} 
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder="Describe the objectives and business impact..." 
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"
+                  ></textarea>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {currentStep === 1 && (
-            <div className="space-y-6 text-center py-12">
-              <MapPin size={48} className="mx-auto text-blue-500 mb-4" />
-              <h3 className="text-lg font-bold">Venue & Scheduling</h3>
-              <p className="text-slate-500 max-w-sm mx-auto">Select a venue. The system will automatically check for conflicts against existing policies and other cases.</p>
-              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
-                <input type="datetime-local" className="border-slate-200 rounded-lg p-2.5" />
-                <input type="datetime-local" className="border-slate-200 rounded-lg p-2.5" />
               </div>
             </div>
           )}
@@ -100,73 +121,53 @@ export const ActivityWizard: React.FC<{ onComplete: () => void }> = ({ onComplet
                 <h3 className="text-lg font-bold">Risk Assessment</h3>
                 <button 
                   onClick={runAiAnalysis}
-                  disabled={isAiAnalyzing}
+                  disabled={isAiAnalyzing || !formData.title}
                   className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors disabled:opacity-50"
                 >
-                  <Sparkles size={14} />
-                  <span>{isAiAnalyzing ? 'Analyzing...' : 'AI Risk Analysis'}</span>
+                  <Sparkles size={14} className={isAiAnalyzing ? "animate-spin" : ""} />
+                  <span>{isAiAnalyzing ? 'Policy Verification...' : 'Gemini AI Analysis'}</span>
                 </button>
               </div>
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-4">
-                <div className="flex items-start space-x-3">
-                  <input type="checkbox" className="mt-1 rounded text-blue-600" />
-                  <div>
-                    <p className="text-sm font-bold">Requires External Guests</p>
-                    <p className="text-xs text-slate-500">Checking this triggers a "Guest Policy Check" during approval.</p>
-                  </div>
+
+              {aiResult ? (
+                <div className="space-y-4 animate-in slide-in-from-top-2">
+                   <div className={`p-4 rounded-lg border flex items-start space-x-4 ${
+                     aiResult.riskLevel === 'HIGH' ? 'bg-rose-50 border-rose-100' : 'bg-blue-50 border-blue-100'
+                   }`}>
+                      <div className={`p-2 rounded-full ${aiResult.riskLevel === 'HIGH' ? 'bg-rose-200 text-rose-700' : 'bg-blue-200 text-blue-700'}`}>
+                        <AlertTriangle size={20} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-900">Analysis Result: {aiResult.riskLevel}</div>
+                        <p className="text-sm text-slate-600 mt-1">{aiResult.reasoning}</p>
+                      </div>
+                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <input type="checkbox" className="mt-1 rounded text-blue-600" />
-                  <div>
-                    <p className="text-sm font-bold">High Data Sensitivity</p>
-                    <p className="text-xs text-slate-500">Activity involves confidential corporate roadmap discussions.</p>
-                  </div>
-                </div>
-              </div>
-              {isAiAnalyzing && (
-                <div className="animate-pulse flex items-center space-x-3 text-indigo-600">
-                  <div className="w-4 h-4 bg-indigo-600 rounded-full"></div>
-                  <span className="text-sm font-medium">Policy Engine evaluating risk factors...</span>
+              ) : (
+                <div className="p-20 text-center border-2 border-dashed border-slate-100 rounded-xl text-slate-400">
+                  <Sparkles className="mx-auto mb-4 opacity-20" size={48} />
+                  <p>Run AI Analysis to see policy compliance suggestions.</p>
                 </div>
               )}
             </div>
           )}
 
-          {currentStep > 2 && (
-             <div className="flex items-center justify-center h-full text-slate-400">
-                Remaining steps content would go here...
+          {currentStep !== 0 && currentStep !== 2 && (
+             <div className="flex flex-col items-center justify-center h-full text-slate-400 py-20">
+                <div className="bg-slate-50 p-6 rounded-full mb-4"><Info size={32} className="opacity-20" /></div>
+                <p>Standard enterprise fields for {STEPS[currentStep].title} go here.</p>
              </div>
           )}
         </div>
 
-        {/* Footer Buttons */}
         <div className="p-6 border-t border-slate-100 flex justify-between">
+          <button onClick={back} disabled={currentStep === 0} className="px-6 py-2.5 rounded-lg border text-slate-600 disabled:opacity-30 font-bold">Previous</button>
           <button 
-            onClick={back} 
-            disabled={currentStep === 0}
-            className="flex items-center space-x-2 px-6 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 font-bold transition-all"
+            onClick={currentStep === STEPS.length - 1 ? onComplete : next}
+            className="px-8 py-2.5 rounded-lg bg-blue-600 text-white shadow-md font-bold"
           >
-            <ChevronLeft size={20} />
-            <span>Previous</span>
+            {currentStep === STEPS.length - 1 ? 'Submit Case' : 'Next Step'}
           </button>
-          
-          {currentStep === STEPS.length - 1 ? (
-            <button 
-              onClick={onComplete}
-              className="flex items-center space-x-2 px-8 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-500 shadow-md font-bold transition-all"
-            >
-              <span>Submit for Approval</span>
-              <CheckCircle2 size={20} />
-            </button>
-          ) : (
-            <button 
-              onClick={next}
-              className="flex items-center space-x-2 px-8 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 shadow-md font-bold transition-all"
-            >
-              <span>Next Step</span>
-              <ChevronRight size={20} />
-            </button>
-          )}
         </div>
       </div>
     </div>

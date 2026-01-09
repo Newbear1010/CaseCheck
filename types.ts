@@ -28,11 +28,20 @@ export interface PolicyDecision {
   requiredRole?: Role;
 }
 
+export interface Visitor {
+  id: string;
+  name: string;
+  company: string;
+  checkInTime: string;
+}
+
 export interface ActivityCase {
   id: string;
+  parentId?: string; // Links to a rejected case if this is a re-submission
   title: string;
   description: string;
   status: CaseStatus;
+  rejectionReason?: string;
   creatorId: string;
   createdAt: string;
   startTime: string;
@@ -40,15 +49,6 @@ export interface ActivityCase {
   location: string;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   members: string[]; // User IDs
-}
-
-export interface AuditLog {
-  id: string;
-  caseId: string;
-  userId: string;
-  action: string;
-  timestamp: string;
-  details: string;
 }
 
 export type PermissionAction = 

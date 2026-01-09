@@ -1,74 +1,44 @@
 
 import { Role, CaseStatus, ActivityCase, PermissionAction, PolicyDecision } from '../types';
 
-/**
- * Enterprise Policy Engine (Mock)
- * In a real system, this might call an OPA (Open Policy Agent) server or a central IAM service.
- */
 export const checkPolicy = (
   userRole: Role,
   userId: string,
   action: PermissionAction,
   resource?: ActivityCase
 ): PolicyDecision => {
-  // 1. Admin bypass for most things
   if (userRole === Role.ADMIN) {
     return { allowed: true };
   }
 
-  // 2. Guest limitations
-  if (userRole === Role.GUEST) {
-    if (action === 'activity:view' && resource?.status !== CaseStatus.DRAFT) {
-      return { allowed: true };
-    }
-    if (action === 'activity:check-in' && resource?.status === CaseStatus.ONGOING) {
-        return { allowed: true };
-    }
+  const isOwner = resource?.creatorId === userId;
+  const isRejected = resource?.status === CaseStatus.REJECTED;
+
+  // Global rule: REJECTED cases are immutable
+  if (isRejected && action === 'activity:edit') {
     return { 
       allowed: false, 
-      reason: 'Guests have restricted access. Contact the activity owner for permission.' 
+      reason: 'Rejected cases are archived for audit purposes and cannot be modified. Please create a new case based on this record.' 
     };
   }
 
-  // 3. User Specific Logic (RBAC + Case Ownership)
-  const isOwner = resource?.creatorId === userId;
-  const isOngoing = resource?.status === CaseStatus.ONGOING;
-  const isApproved = resource?.status === CaseStatus.APPROVED;
-  const isClosed = resource?.status === CaseStatus.CLOSED;
+  if (userRole === Role.GUEST) {
+    if (action === 'activity:view' && resource?.status !== CaseStatus.DRAFT) return { allowed: true };
+    if (action === 'activity:check-in' && resource?.status === CaseStatus.ONGOING) return { allowed: true };
+    return { allowed: false, reason: 'Guests have restricted access.' };
+  }
 
   switch (action) {
-    case 'activity:view':
-      return { allowed: true }; // Everyone can view cases in this system (discovery)
-    
+    case 'activity:view': return { allowed: true };
     case 'activity:edit':
       if (isOwner && (resource?.status === CaseStatus.DRAFT || resource?.status === CaseStatus.REJECTED)) {
+        // This will now be caught by the isRejected check above if status is REJECTED
         return { allowed: true };
       }
-      return { 
-        allowed: false, 
-        reason: isOwner 
-          ? `Cannot edit while in ${resource?.status} status. Request an unlock if needed.` 
-          : 'Only the activity owner can edit this case.' 
-      };
-
-    case 'activity:delete':
-      if (isOwner && resource?.status === CaseStatus.DRAFT) {
-        return { allowed: true };
-      }
-      return { allowed: false, reason: 'Deletion only allowed for own drafts.' };
-
-    case 'activity:approve':
-      return { allowed: false, reason: 'Approval requires Administrator privileges.', requiredRole: Role.ADMIN };
-
+      return { allowed: false, reason: 'Only drafts or specific owner-owned resources can be edited.' };
     case 'activity:check-in':
-      if (isOngoing || isApproved) return { allowed: true };
-      return { allowed: false, reason: 'Check-in is only available for ongoing or approved activities.' };
-
-    case 'activity:report':
-      if (isClosed || isOngoing) return { allowed: true };
-      return { allowed: false, reason: 'Reporting is available once activity starts.' };
-
+      return { allowed: resource?.status === CaseStatus.ONGOING || resource?.status === CaseStatus.APPROVED };
     default:
-      return { allowed: false, reason: 'Undefined policy for this action.' };
+      return { allowed: false, reason: 'Policy undefined for this context.' };
   }
 };
