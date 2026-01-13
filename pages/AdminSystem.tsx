@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useI18n } from '../context/I18nContext';
 import { Users, Shield, Settings, Search, Plus, MoreVertical, CheckCircle, XCircle } from 'lucide-react';
 import { Role, User } from '../types';
 
@@ -10,17 +11,18 @@ const MOCK_USERS: User[] = [
 ];
 
 export const AdminSystem: React.FC = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'users' | 'policies' | 'logs'>('users');
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">System Management</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t.admin.systemManagement}</h1>
         <div className="flex space-x-2">
           {activeTab === 'users' && (
             <button className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center space-x-2 hover:bg-slate-800">
               <Plus size={16} />
-              <span>Add User</span>
+              <span>{t.admin.addUser}</span>
             </button>
           )}
         </div>
@@ -29,9 +31,9 @@ export const AdminSystem: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex border-b border-slate-100 bg-slate-50/50">
           {[
-            { id: 'users', label: 'User Directory', icon: Users },
-            { id: 'policies', label: 'Global Policies', icon: Shield },
-            { id: 'logs', label: 'System Logs', icon: Settings },
+            { id: 'users', label: t.admin.userDirectory, icon: Users },
+            { id: 'policies', label: t.admin.globalPolicies, icon: Shield },
+            { id: 'logs', label: t.admin.systemLogs, icon: Settings },
           ].map(tab => {
             const Icon = tab.icon;
             return (
@@ -55,16 +57,16 @@ export const AdminSystem: React.FC = () => {
               <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="relative w-72">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input type="text" placeholder="Search by name or email..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm" />
+                  <input type="text" placeholder={t.admin.searchByNameOrEmail} className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm" />
                 </div>
               </div>
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 border-b border-slate-100">
                   <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    <th className="px-6 py-4">Name</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Department</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">{t.admin.name}</th>
+                    <th className="px-6 py-4">{t.admin.role}</th>
+                    <th className="px-6 py-4">{t.admin.department}</th>
+                    <th className="px-6 py-4">{t.admin.status}</th>
                     <th className="px-6 py-4"></th>
                   </tr>
                 </thead>
@@ -76,13 +78,13 @@ export const AdminSystem: React.FC = () => {
                         <div className="text-xs text-slate-400">{user.email}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{user.role}</span>
+                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{t.roles[user.role]}</span>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500">{user.department}</td>
                       <td className="px-6 py-4">
                         <div className={`flex items-center space-x-1.5 text-xs font-bold ${user.status === 'ACTIVE' ? 'text-green-600' : 'text-slate-400'}`}>
                           {user.status === 'ACTIVE' ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                          <span>{user.status}</span>
+                          <span>{t.status[user.status]}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -98,15 +100,15 @@ export const AdminSystem: React.FC = () => {
           {activeTab === 'policies' && (
             <div className="p-12 text-center text-slate-400">
               <Shield size={64} className="mx-auto mb-4 opacity-10" />
-              <h3 className="text-lg font-bold text-slate-600">Enterprise Policy Engine</h3>
-              <p className="max-w-md mx-auto mt-2">Configuration for risk scoring, department constraints, and automated approval logic.</p>
-              <button className="mt-8 text-blue-600 font-bold hover:underline">Download Global Policy PDF</button>
+              <h3 className="text-lg font-bold text-slate-600">{t.admin.enterprisePolicyEngine}</h3>
+              <p className="max-w-md mx-auto mt-2">{t.admin.enterprisePolicyEngineDesc}</p>
+              <button className="mt-8 text-blue-600 font-bold hover:underline">{t.admin.downloadGlobalPolicyPDF}</button>
             </div>
           )}
-          
+
           {activeTab === 'logs' && (
              <div className="p-12 text-center text-slate-400 italic">
-               System logs are aggregated in the external CloudWatch dashboard.
+               {t.admin.systemLogsInfo}
              </div>
           )}
         </div>

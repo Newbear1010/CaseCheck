@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { 
-  ArrowLeft, 
-  Users, 
-  Clock, 
-  CheckCircle, 
+import {
+  ArrowLeft,
+  Users,
+  Clock,
+  CheckCircle,
   AlertTriangle,
   FileText,
   History,
@@ -20,6 +20,7 @@ import {
   ExternalLink,
   MapPin
 } from 'lucide-react';
+import { useI18n } from '../context/I18nContext';
 import { PermissionWrapper } from '../components/PermissionWrapper';
 import { CaseStatus, ActivityCase } from '../types';
 import { CheckInModule } from './CheckInModule';
@@ -30,17 +31,20 @@ interface CaseDetailProps {
   onRemake: (base: ActivityCase) => void;
 }
 
-const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> = ({ activity, onClose }) => (
+const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> = ({ activity, onClose }) => {
+  const { t } = useI18n();
+
+  return (
   <div className="fixed inset-0 z-[110] bg-slate-950/90 flex items-center justify-center p-6 backdrop-blur-sm">
     <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
       <div className="flex justify-between items-center border-b pb-4">
         <div className="text-left">
-          <h3 className="font-bold text-slate-900">Check-in QR</h3>
-          <p className="text-xs text-slate-500">Scan for Activity ID: {activity.id}</p>
+          <h3 className="font-bold text-slate-900">{t.activity.checkInQR}</h3>
+          <p className="text-xs text-slate-500">{t.activity.scanForActivityId}: {activity.id}</p>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button>
       </div>
-      
+
       <div className="bg-slate-50 aspect-square rounded-2xl flex items-center justify-center border-2 border-slate-100 relative group">
         {/* Mocking a high-fidelity QR Code with CSS and SVG */}
         <div className="w-48 h-48 bg-white p-4 rounded-xl shadow-inner border border-slate-200 grid grid-cols-4 grid-rows-4 gap-1">
@@ -65,13 +69,15 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
 
       <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-slate-800 transition-colors">
         <Download size={18} />
-        <span>Save as Image</span>
+        <span>{t.activity.saveAsImage}</span>
       </button>
     </div>
   </div>
-);
+  );
+};
 
 export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRemake }) => {
+  const { t, translate } = useI18n();
   const [activeTab, setActiveTab] = useState('overview');
   const [showScanner, setShowScanner] = useState(false);
   const [showQRDisplay, setShowQRDisplay] = useState(false);
@@ -84,38 +90,38 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
   return (
     <div className="space-y-6">
       {showQRDisplay && <QRDisplayModal activity={activity} onClose={() => setShowQRDisplay(false)} />}
-      
+
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="flex items-center space-x-2 text-slate-500 font-medium hover:text-slate-700 transition-colors">
           <ArrowLeft size={20} />
-          <span>Case Directory</span>
+          <span>{t.activity.caseDirectory}</span>
         </button>
-        
+
         <div className="flex items-center space-x-3">
           {isRejected ? (
-            <button 
+            <button
               onClick={() => onRemake(activity)}
               className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all"
             >
               <RefreshCw size={16} />
-              <span>Start New from this Record</span>
+              <span>{t.activity.startNewFromRecord}</span>
             </button>
           ) : (
             <>
               <PermissionWrapper action="activity:edit" resource={activity} fallback="disable">
                 <button className="flex items-center space-x-2 bg-white border px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors">
                   <Edit3 size={16} />
-                  <span>Edit Record</span>
+                  <span>{t.activity.editRecord}</span>
                 </button>
               </PermissionWrapper>
 
               {isOngoing && (
-                <button 
+                <button
                   onClick={() => setShowQRDisplay(true)}
                   className="flex items-center space-x-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-md transition-all"
                 >
                   <QrCode size={16} />
-                  <span>Display QR</span>
+                  <span>{t.activity.displayQR}</span>
                 </button>
               )}
             </>
@@ -124,7 +130,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
           <PermissionWrapper action="activity:check-in" resource={activity} fallback="hide">
              <button onClick={() => setShowScanner(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center space-x-2 hover:bg-blue-700">
               <Maximize2 size={16} />
-              <span>Open Scanner</span>
+              <span>{t.activity.openScanner}</span>
             </button>
           </PermissionWrapper>
         </div>
@@ -134,9 +140,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 flex items-start space-x-4">
           <div className="bg-rose-100 text-rose-600 p-2 rounded-lg"><XCircle size={24} /></div>
           <div>
-            <h3 className="font-bold text-rose-900">Case Rejected - Read Only</h3>
-            <p className="text-rose-700 text-sm mt-1">Reason: {activity.rejectionReason || 'Incomplete risk assessment documentation.'}</p>
-            <p className="text-rose-600/60 text-xs mt-3 italic font-medium">Archive Reference ID: {activity.id}</p>
+            <h3 className="font-bold text-rose-900">{t.activity.caseRejectedReadOnly}</h3>
+            <p className="text-rose-700 text-sm mt-1">{t.activity.reason}: {activity.rejectionReason || 'Incomplete risk assessment documentation.'}</p>
+            <p className="text-rose-600/60 text-xs mt-3 italic font-medium">{t.activity.archiveReferenceId}: {activity.id}</p>
           </div>
         </div>
       )}
@@ -148,13 +154,13 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <span className="mono text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded tracking-widest border">#{activity.id}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                 activity.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' :
-                activity.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' : 
+                activity.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
                 activity.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
-              }`}>{activity.status}</span>
+              }`}>{t.status[activity.status]}</span>
             </div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-1">
               <Clock size={12} />
-              <span>Created on {activity.createdAt}</span>
+              <span>{translate('activity.createdOn', { date: activity.createdAt })}</span>
             </div>
           </div>
           <h1 className="text-3xl font-bold text-slate-900">{activity.title}</h1>
@@ -162,14 +168,19 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
         </div>
 
         <nav className="bg-slate-50 px-8 border-t border-slate-100 flex space-x-8 overflow-x-auto no-scrollbar">
-          {['overview', 'members', 'attendance', 'audit'].map(tab => (
-            <button 
-              key={tab} 
-              onClick={() => setActiveTab(tab)}
+          {[
+            { id: 'overview', label: t.activity.overview },
+            { id: 'members', label: t.activity.members },
+            { id: 'attendance', label: t.attendance.record },
+            { id: 'audit', label: t.activity.audit }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={`py-4 text-xs font-bold border-b-2 transition-all uppercase tracking-widest ${
-                activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+                activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
-            >{tab}</button>
+            >{tab.label}</button>
           ))}
         </nav>
       </div>
@@ -181,49 +192,48 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <div className="space-y-4">
                 <h3 className="font-bold text-sm text-slate-400 uppercase tracking-widest flex items-center space-x-2">
                   <FileText size={16} />
-                  <span>Activity Mission</span>
+                  <span>{t.activity.activityMission}</span>
                 </h3>
                 <p className="text-slate-600 leading-relaxed text-sm">
-                  This activity is officially registered in the corporate governance ledger. 
-                  All participants are required to check in via the secure portal or verified physical terminals.
+                  {t.activity.activityMissionDesc}
                 </p>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-6">
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Assessed Risk</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.activity.assessedRisk}</div>
                   <div className={`text-sm font-bold flex items-center space-x-2 ${activity.riskLevel === 'HIGH' ? 'text-rose-600' : 'text-slate-700'}`}>
                     <AlertTriangle size={14} />
-                    <span>{activity.riskLevel} IMPACT</span>
+                    <span>{t.risk[activity.riskLevel]} IMPACT</span>
                   </div>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Registration</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.activity.registration}</div>
                   <div className="text-sm font-bold text-slate-700 flex items-center space-x-2">
                     <Users size={14} />
-                    <span>{activity.members.length} Expected</span>
+                    <span>{activity.members.length} {t.activity.expected}</span>
                   </div>
                 </div>
               </div>
 
               <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
-                <h4 className="text-xs font-bold text-blue-700 mb-2 uppercase">Logistics Information</h4>
+                <h4 className="text-xs font-bold text-blue-700 mb-2 uppercase">{t.activity.logisticsInformation}</h4>
                 <div className="grid grid-cols-2 gap-4 text-xs">
-                   <div><span className="text-blue-600/60">Location:</span> <span className="text-blue-900 font-bold ml-1">{activity.location}</span></div>
-                   <div><span className="text-blue-600/60">Duration:</span> <span className="text-blue-900 font-bold ml-1">8 Hours</span></div>
+                   <div><span className="text-blue-600/60">{t.activity.location}:</span> <span className="text-blue-900 font-bold ml-1">{activity.location}</span></div>
+                   <div><span className="text-blue-600/60">{t.activity.duration}:</span> <span className="text-blue-900 font-bold ml-1">8 Hours</span></div>
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-6">
-              <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest border-b pb-2">Artifacts & Documents</h3>
+              <h3 className="font-bold text-[10px] text-slate-400 uppercase tracking-widest border-b pb-2">{t.activity.artifactsAndDocuments}</h3>
               <div className="space-y-3">
                 <button className="w-full flex items-center justify-between p-3 border rounded-xl hover:bg-slate-50 transition-all text-left">
                   <div className="flex items-center space-x-3">
                     <div className="bg-red-50 text-red-500 p-2 rounded-lg"><FileText size={16} /></div>
                     <div className="overflow-hidden">
                       <div className="text-xs font-bold text-slate-900 truncate">Safety_Protocols.pdf</div>
-                      <div className="text-[10px] text-slate-400">1.2 MB • Internal</div>
+                      <div className="text-[10px] text-slate-400">1.2 MB • {t.activity.internal}</div>
                     </div>
                   </div>
                   <Download size={14} className="text-slate-300" />
@@ -233,7 +243,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
                     <div className="bg-blue-50 text-blue-500 p-2 rounded-lg"><FileText size={16} /></div>
                     <div className="overflow-hidden">
                       <div className="text-xs font-bold text-slate-900 truncate">Activity_Manifest.csv</div>
-                      <div className="text-[10px] text-slate-400">45 KB • Final</div>
+                      <div className="text-[10px] text-slate-400">45 KB • {t.activity.final}</div>
                     </div>
                   </div>
                   <Download size={14} className="text-slate-300" />
@@ -248,18 +258,18 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100">
-                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">Present</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.present}</div>
                     <div className="text-xl font-bold">12 <span className="text-xs opacity-50 font-normal">/ 15</span></div>
                   </div>
                   <div className="bg-slate-50 text-slate-600 px-4 py-2 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">Visitors</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.visitors}</div>
                     <div className="text-xl font-bold">3</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" placeholder="Search attendee..." className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs w-48" />
+                    <input type="text" placeholder={t.attendance.searchAttendee} className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs w-48" />
                   </div>
                 </div>
               </div>
@@ -268,10 +278,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
                  <table className="w-full text-left">
                     <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b">
                        <tr>
-                          <th className="px-6 py-4">Participant</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4">Check-in Time</th>
-                          <th className="px-6 py-4">Verified By</th>
+                          <th className="px-6 py-4">{t.attendance.participant}</th>
+                          <th className="px-6 py-4">{t.activity.status}</th>
+                          <th className="px-6 py-4">{t.attendance.checkInTime}</th>
+                          <th className="px-6 py-4">{t.attendance.verifiedBy}</th>
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-sm">
@@ -329,7 +339,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               ))}
               <button className="flex items-center justify-center space-x-2 p-4 border-2 border-dashed rounded-xl text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all">
                 <Plus size={20} />
-                <span className="text-xs font-bold uppercase tracking-widest">Add Participant</span>
+                <span className="text-xs font-bold uppercase tracking-widest">{t.activity.addParticipant}</span>
               </button>
            </div>
         )}
