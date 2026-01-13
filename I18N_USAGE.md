@@ -16,6 +16,11 @@
 - ✅ AppShell.tsx - 側邊欄導航、語言切換按鈕
 - ✅ Dashboard.tsx - 儀表板頁面
 - ✅ ActivityWizard.tsx - 活動建立精靈
+- ✅ CaseDetail.tsx - 活動詳情頁面
+- ✅ ApprovalCenter.tsx - 審批中心
+- ✅ AttendanceReport.tsx - 出席報表
+- ✅ CheckInModule.tsx - 簽到模組
+- ✅ AdminSystem.tsx - 系統管理
 
 ## 如何使用
 
@@ -137,12 +142,14 @@ const activity = {
 
 以下頁面尚未更新 i18n，需要時可參考已更新的頁面模式進行修改：
 
-- [ ] CaseDetail.tsx
-- [ ] ApprovalCenter.tsx
-- [ ] AttendanceReport.tsx
-- [ ] CheckInModule.tsx
-- [ ] AdminSystem.tsx
+- [x] CaseDetail.tsx
+- [x] ApprovalCenter.tsx
+- [x] AttendanceReport.tsx
+- [x] CheckInModule.tsx
+- [x] AdminSystem.tsx
 - [ ] PermissionWrapper.tsx
+
+**注意**: PermissionWrapper.tsx 主要是權限控制元件，不包含需要翻譯的使用者介面文字。所有前端頁面的 i18n 整合已完成！
 
 ## 更新範例
 
