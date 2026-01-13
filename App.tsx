@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { I18nProvider, useI18n } from './context/I18nContext';
 import { AppShell } from './components/AppShell';
 import { Dashboard } from './pages/Dashboard';
 import { ActivityWizard } from './pages/ActivityWizard';
@@ -42,6 +43,8 @@ const REJECTED_ACTIVITY: ActivityCase = {
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
+  const { t } = useI18n();
+
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 transform transition-all hover:scale-[1.01]">
@@ -49,14 +52,14 @@ const LoginPage: React.FC = () => {
           <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-blue-500/20">
             <ShieldCheck size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">CaseFlow Enterprise</h1>
-          <p className="text-slate-500 text-sm mt-1">Unified Activity Governance Platform</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t.branding.appName}</h1>
+          <p className="text-slate-500 text-sm mt-1">{t.branding.appSubtitle}</p>
         </div>
         <div className="space-y-3">
           {[
-            { role: Role.ADMIN, label: 'Policy Administrator', icon: ShieldCheck, color: 'text-rose-600' },
-            { role: Role.USER, label: 'Employee Portal', icon: UserIcon, color: 'text-blue-600' },
-            { role: Role.GUEST, label: 'Guest Terminal', icon: ShieldQuestion, color: 'text-slate-600' }
+            { role: Role.ADMIN, label: t.roles.policyAdministrator, icon: ShieldCheck, color: 'text-rose-600' },
+            { role: Role.USER, label: t.roles.employeePortal, icon: UserIcon, color: 'text-blue-600' },
+            { role: Role.GUEST, label: t.roles.guestTerminal, icon: ShieldQuestion, color: 'text-slate-600' }
           ].map(item => (
             <button key={item.role} onClick={() => login(item.role)} className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all group hover:border-blue-200">
               <div className="flex items-center space-x-4">
@@ -68,7 +71,7 @@ const LoginPage: React.FC = () => {
           ))}
         </div>
         <div className="mt-8 text-center">
-           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Secured by Enterprise Auth Engine</p>
+           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{t.branding.securedBy}</p>
         </div>
       </div>
     </div>
@@ -76,6 +79,7 @@ const LoginPage: React.FC = () => {
 };
 
 const MainRouter: React.FC = () => {
+  const { t } = useI18n();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [selectedCase, setSelectedCase] = useState<ActivityCase | null>(null);
   const [remakeBase, setRemakeBase] = useState<ActivityCase | null>(null);
@@ -106,33 +110,33 @@ const MainRouter: React.FC = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Case Directory</h1>
-              <p className="text-slate-500 text-sm">Centralized activity management and audit trails.</p>
+              <h1 className="text-2xl font-bold text-slate-900">{t.nav.caseDirectory}</h1>
+              <p className="text-slate-500 text-sm">{t.activity.centralizedManagement}</p>
             </div>
-            <button onClick={() => setCurrentPage('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors">Create New Case</button>
+            <button onClick={() => setCurrentPage('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors">{t.activity.createNewCase}</button>
           </div>
           <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-left">
               <thead className="bg-slate-50 border-b border-slate-100 font-bold text-slate-400 text-[10px] uppercase tracking-widest">
-                <tr><th className="px-6 py-4">Status</th><th className="px-6 py-4">Title</th><th className="px-6 py-4">Risk</th><th className="px-6 py-4"></th></tr>
+                <tr><th className="px-6 py-4">{t.activity.status}</th><th className="px-6 py-4">{t.activity.title}</th><th className="px-6 py-4">{t.activity.riskLevel}</th><th className="px-6 py-4"></th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {[MOCK_ACTIVITY, REJECTED_ACTIVITY].map(c => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        c.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' : 
-                        c.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' : 
+                        c.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' :
+                        c.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
                         c.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
-                      }`}>{c.status}</span>
+                      }`}>{t.status[c.status]}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{c.title}</div>
                       <div className="text-[10px] text-slate-400 mono">ID: {c.id}</div>
                     </td>
-                    <td className="px-6 py-4 text-xs font-bold text-slate-500">{c.riskLevel}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-500">{t.risk[c.riskLevel]}</td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => setSelectedCase(c)} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">View Details</button>
+                      <button onClick={() => setSelectedCase(c)} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">{t.activity.viewDetails}</button>
                     </td>
                   </tr>
                 ))}
@@ -153,9 +157,11 @@ const MainRouter: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <AuthProvider>
-    <AuthConsumer />
-  </AuthProvider>
+  <I18nProvider>
+    <AuthProvider>
+      <AuthConsumer />
+    </AuthProvider>
+  </I18nProvider>
 );
 
 const AuthConsumer: React.FC = () => {
