@@ -7,13 +7,16 @@
 ```
 CaseCheck/
 ├── frontend/              # React 19 + TypeScript + Vite 前端應用
-│   ├── src/
-│   │   ├── components/   # React 元件
-│   │   ├── contexts/     # Context API 狀態管理
-│   │   ├── pages/        # 頁面元件
-│   │   ├── services/     # API 服務層
-│   │   └── types/        # TypeScript 型別定義
-│   └── index.html
+│   ├── App.tsx
+│   ├── index.tsx
+│   ├── index.html
+│   ├── components/       # React 元件
+│   ├── context/          # Context API 狀態管理
+│   ├── pages/            # 頁面元件
+│   ├── services/         # API 服務層
+│   ├── locales/          # i18n 語系
+│   ├── types.ts          # TypeScript 型別定義
+│   └── vite.config.ts
 │
 ├── backend/              # Python FastAPI 後端 API
 │   ├── app/
@@ -87,6 +90,9 @@ CaseCheck/
 **前置需求**: Node.js 18+
 
 ```bash
+# 切換到前端目錄
+cd frontend
+
 # 安裝依賴
 npm install
 
@@ -100,7 +106,7 @@ npm run build
 npm run preview
 ```
 
-前端應用會在 `http://localhost:5173` 運行。
+前端應用會在 `http://localhost:3000` 運行。
 
 **注意**: AI 風險評估功能已暫時停用，需要後端 API 整合。
 
@@ -150,6 +156,7 @@ uvicorn app.main:app --reload
 
 1. 連接 GitHub 倉庫到 Cloudflare Pages
 2. 構建設定：
+   - 根目錄: `frontend/`
    - 構建命令: `npm run build`
    - 輸出目錄: `dist`
    - 環境變數: 無需設定（AI 功能已停用）

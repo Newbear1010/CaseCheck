@@ -182,6 +182,7 @@ const { t } = useI18n();
 啟動開發服務器並測試語言切換：
 
 ```bash
+cd frontend
 npm run dev
 ```
 

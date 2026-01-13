@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .claude
+CLAUDE.md
+AGENTS.md
+/issues
