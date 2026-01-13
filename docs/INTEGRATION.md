@@ -136,7 +136,7 @@ npm run dev  # http://localhost:3000
 
 ### 3.1 Axios 客戶端
 
-創建 `src/api/client.ts`:
+創建 `frontend/api/client.ts`:
 
 ```typescript
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
@@ -219,7 +219,7 @@ apiClient.interceptors.response.use(
 創建各資源的 API 封裝：
 
 ```typescript
-// src/api/auth.api.ts
+// frontend/api/auth.api.ts
 
 import { apiClient } from './client';
 import { User } from '../types';
@@ -268,7 +268,7 @@ export const authApi = {
 ---
 
 ```typescript
-// src/api/activity.api.ts
+// frontend/api/activity.api.ts
 
 import { apiClient } from './client';
 import { ActivityCase, CaseStatus } from '../types';
@@ -560,7 +560,7 @@ npm install @tanstack/react-query
 
 配置:
 ```typescript
-// App.tsx
+// frontend/App.tsx
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -880,7 +880,7 @@ export interface ActivityCase {
 npm install -D openapi-typescript
 
 # 生成型別
-npx openapi-typescript http://localhost:5000/openapi.json -o src/types/api.ts
+npx openapi-typescript http://localhost:5000/openapi.json -o frontend/types/api.ts
 ```
 
 ---

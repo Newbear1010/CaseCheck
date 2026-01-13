@@ -158,35 +158,30 @@ CaseFlow Enterprise 是一個**企業級活動管理與簽到系統**，採用 *
 
 ```
 frontend/
-├── src/
-│   ├── components/          # 可複用組件
-│   │   ├── AppShell.tsx     # 主框架
-│   │   └── PermissionWrapper.tsx  # 權限包裝器
-│   ├── pages/               # 頁面組件
-│   │   ├── Dashboard.tsx    # 儀表板
-│   │   ├── ActivityWizard.tsx  # 活動創建精靈
-│   │   ├── CaseDetail.tsx   # 活動詳情
-│   │   ├── ApprovalCenter.tsx  # 審批中心
-│   │   ├── AttendanceReport.tsx  # 點名報表
-│   │   ├── AdminSystem.tsx  # 管理員控制台
-│   │   └── CheckInModule.tsx  # 簽到模組
-│   ├── context/             # React Context
-│   │   └── AuthContext.tsx  # 認證上下文
-│   ├── services/            # 業務邏輯服務
-│   │   ├── policyEngine.ts  # 前端權限檢查 (鏡像後端邏輯)
-│   │   └── aiService.ts     # AI 服務 (已禁用)
-│   ├── api/                 # API 客戶端 (待實作)
-│   │   ├── client.ts        # Axios 配置
-│   │   ├── auth.api.ts      # 認證 API
-│   │   ├── activity.api.ts  # 活動 API
-│   │   └── user.api.ts      # 用戶 API
-│   ├── hooks/               # 自定義 Hooks (待實作)
-│   │   ├── usePermission.ts # 權限檢查 Hook
-│   │   ├── useApi.ts        # API 調用 Hook
-│   │   └── useAuth.ts       # 認證 Hook
-│   ├── types.ts             # TypeScript 類型定義
-│   ├── App.tsx              # 主應用
-│   └── index.tsx            # 入口文件
+├── components/          # 可複用組件
+│   ├── AppShell.tsx     # 主框架
+│   └── PermissionWrapper.tsx  # 權限包裝器
+├── pages/               # 頁面組件
+│   ├── Dashboard.tsx    # 儀表板
+│   ├── ActivityWizard.tsx  # 活動創建精靈
+│   ├── CaseDetail.tsx   # 活動詳情
+│   ├── ApprovalCenter.tsx  # 審批中心
+│   ├── AttendanceReport.tsx  # 點名報表
+│   ├── AdminSystem.tsx  # 管理員控制台
+│   └── CheckInModule.tsx  # 簽到模組
+├── context/             # React Context
+│   ├── AuthContext.tsx  # 認證上下文
+│   └── I18nContext.tsx  # 多語系上下文
+├── services/            # 業務邏輯服務
+│   ├── policyEngine.ts  # 前端權限檢查 (鏡像後端邏輯)
+│   └── aiService.ts     # AI 服務 (已禁用)
+├── locales/             # i18n 語系
+│   ├── zh-TW.ts
+│   ├── en-US.ts
+│   └── index.ts
+├── types.ts             # TypeScript 類型定義
+├── App.tsx              # 主應用
+├── index.tsx            # 入口文件
 ├── index.html
 ├── vite.config.ts
 └── package.json
