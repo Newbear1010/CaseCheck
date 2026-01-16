@@ -132,7 +132,7 @@ CaseFlow 採用 **混合授權模型**：
 
 **核心能力**:
 - ✅ 查看已批准/進行中的活動（非 DRAFT）
-- ✅ 簽到（僅限 ONGOING 狀態活動）
+- ✅ 簽到（僅限 IN_PROGRESS 狀態活動）
 - ✅ 查看公開資訊
 
 **限制**:
@@ -170,7 +170,7 @@ CaseFlow 採用 **混合授權模型**：
 |------|-------|------|-------|------|
 | **生成 QR Code** | ✅ | ✅ (自己的活動) | ❌ | - |
 | **成員簽到** | ✅ | ✅ | ❌ | 必須是活動成員 |
-| **訪客簽到** | ✅ | ✅ | ✅ | 僅限 ONGOING 狀態 |
+| **訪客簽到** | ✅ | ✅ | ✅ | 僅限 IN_PROGRESS 狀態 |
 | **查看簽到記錄** | ✅ 全部 | ✅ 自己參與的 | ❌ | - |
 | **導出簽到報表** | ✅ | ✅ (自己的) | ❌ | - |
 
@@ -232,10 +232,10 @@ allow if {
 **USER 可以查看**:
 - 自己創建的活動（任何狀態）
 - 自己參與的活動（任何狀態）
-- 所有 APPROVED/ONGOING/CLOSED 活動
+- 所有 APPROVED/IN_PROGRESS/COMPLETED 活動
 
 **GUEST 可以查看**:
-- 僅 APPROVED/ONGOING/CLOSED 狀態的活動
+- 僅 APPROVED/IN_PROGRESS/COMPLETED 狀態的活動
 
 **OPA 實作**:
 ```rego
@@ -250,7 +250,7 @@ allow if {
     input.action == "activity:view"
     input.subject.role == "GUEST"
     # 僅公開狀態
-    input.resource.status in ["APPROVED", "ONGOING", "CLOSED"]
+    input.resource.status in ["APPROVED", "IN_PROGRESS", "COMPLETED"]
 }
 
 activity_viewable_by_user(subject, resource) if {
@@ -265,7 +265,7 @@ activity_viewable_by_user(subject, resource) if {
 
 activity_viewable_by_user(subject, resource) if {
     # 公開狀態
-    resource.status in ["APPROVED", "ONGOING", "CLOSED"]
+    resource.status in ["APPROVED", "IN_PROGRESS", "COMPLETED"]
 }
 ```
 
@@ -384,14 +384,14 @@ allow if {
     input.action == "activity:approve"
     input.subject.role == "ADMIN"
     input.resource.creator_id != input.subject.id
-    input.resource.status == "SUBMITTED"
+    input.resource.status == "PENDING_APPROVAL"
 }
 
 # ADMIN 可以拒絕
 allow if {
     input.action == "activity:reject"
     input.subject.role == "ADMIN"
-    input.resource.status == "SUBMITTED"
+    input.resource.status == "PENDING_APPROVAL"
 }
 ```
 
@@ -402,7 +402,7 @@ allow if {
 #### 規則 7: 成員簽到
 
 **允許條件**:
-- 活動狀態為 APPROVED 或 ONGOING
+- 活動狀態為 APPROVED 或 IN_PROGRESS
 - 用戶是活動成員
 - 在活動時間範圍內（可選）
 
@@ -410,7 +410,7 @@ allow if {
 ```rego
 allow if {
     input.action == "activity:check_in"
-    input.resource.status in ["APPROVED", "ONGOING"]
+    input.resource.status in ["APPROVED", "IN_PROGRESS"]
     input.subject.id in input.resource.member_ids
 }
 
@@ -444,21 +444,21 @@ time_in_range(current, start, end) if {
 #### 規則 8: 訪客簽到
 
 **允許條件**:
-- 活動狀態為 ONGOING
+- 活動狀態為 IN_PROGRESS
 - 任何角色（包括 GUEST）
 
 **OPA 實作**:
 ```rego
 allow if {
     input.action == "activity:visitor_check_in"
-    input.resource.status == "ONGOING"
+    input.resource.status == "IN_PROGRESS"
 }
 
 deny contains reason if {
     input.action == "activity:visitor_check_in"
-    input.resource.status != "ONGOING"
+    input.resource.status != "IN_PROGRESS"
     reason := {
-        "code": "ACTIVITY_NOT_ONGOING",
+        "code": "ACTIVITY_NOT_IN_PROGRESS",
         "message": "Visitor check-in is only allowed for ongoing activities",
         "current_status": input.resource.status
     }
@@ -615,7 +615,7 @@ allow if {
 allow if {
     input.action == "activity:view"
     input.subject.role == "GUEST"
-    input.resource.status in ["APPROVED", "ONGOING", "CLOSED"]
+    input.resource.status in ["APPROVED", "IN_PROGRESS", "COMPLETED"]
 }
 
 activity_viewable_by_user(subject, resource) if {
@@ -627,7 +627,7 @@ activity_viewable_by_user(subject, resource) if {
 }
 
 activity_viewable_by_user(subject, resource) if {
-    resource.status in ["APPROVED", "ONGOING", "CLOSED"]
+    resource.status in ["APPROVED", "IN_PROGRESS", "COMPLETED"]
 }
 
 # ===== 編輯權限 =====
@@ -661,19 +661,19 @@ allow if {
     input.action in ["activity:approve", "activity:reject"]
     input.subject.role == "ADMIN"
     input.resource.creator_id != input.subject.id
-    input.resource.status == "SUBMITTED"
+    input.resource.status == "PENDING_APPROVAL"
 }
 
 # ===== 簽到權限 =====
 allow if {
     input.action == "activity:check_in"
-    input.resource.status in ["APPROVED", "ONGOING"]
+    input.resource.status in ["APPROVED", "IN_PROGRESS"]
     input.subject.id in input.resource.member_ids
 }
 
 allow if {
     input.action == "activity:visitor_check_in"
-    input.resource.status == "ONGOING"
+    input.resource.status == "IN_PROGRESS"
 }
 
 # ===== Helper Functions =====
@@ -743,7 +743,7 @@ test_cannot_approve_own_activity if {
     not allow with input as {
         "subject": {"role": "ADMIN", "id": "admin-1"},
         "action": "activity:approve",
-        "resource": {"id": "C-001", "status": "SUBMITTED", "creator_id": "admin-1"}
+        "resource": {"id": "C-001", "status": "PENDING_APPROVAL", "creator_id": "admin-1"}
     }
 }
 
@@ -751,7 +751,7 @@ test_admin_can_approve_others_activity if {
     allow with input as {
         "subject": {"role": "ADMIN", "id": "admin-1"},
         "action": "activity:approve",
-        "resource": {"id": "C-001", "status": "SUBMITTED", "creator_id": "user-1"}
+        "resource": {"id": "C-001", "status": "PENDING_APPROVAL", "creator_id": "user-1"}
     }
 }
 ```
@@ -817,7 +817,7 @@ export const checkPolicy = (
     }
     if (
       action === 'activity:check-in' &&
-      resource?.status === CaseStatus.ONGOING
+      resource?.status === CaseStatus.IN_PROGRESS
     ) {
       return { allowed: true };
     }
@@ -846,7 +846,7 @@ export const checkPolicy = (
 
     case 'activity:check-in':
       if (
-        resource?.status === CaseStatus.ONGOING ||
+        resource?.status === CaseStatus.IN_PROGRESS ||
         resource?.status === CaseStatus.APPROVED
       ) {
         return { allowed: true };
@@ -1001,9 +1001,9 @@ describe('Policy Engine', () => {
 | 查看任何活動 | ADMIN 角色 | 無 |
 | 創建活動 | USER 或以上 | 無 |
 | 編輯活動 | ADMIN 或 自己的 DRAFT | 狀態=DRAFT + 是創建者 |
-| 批准活動 | ADMIN 角色 | 不是自己創建的 + 狀態=SUBMITTED |
-| 拒絕活動 | ADMIN 角色 | 狀態=SUBMITTED |
-| 簽到 | 任何角色 | 狀態=ONGOING (訪客) 或 是成員 |
+| 批准活動 | ADMIN 角色 | 不是自己創建的 + 狀態=PENDING_APPROVAL |
+| 拒絕活動 | ADMIN 角色 | 狀態=PENDING_APPROVAL |
+| 簽到 | 任何角色 | 狀態=IN_PROGRESS (訪客) 或 是成員 |
 | 管理用戶 | ADMIN 角色 | 無 |
 
 ### B. 錯誤碼對照

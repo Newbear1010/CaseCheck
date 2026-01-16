@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useI18n } from '../context/I18nContext';
 import {
   ChevronRight,
@@ -7,14 +7,10 @@ import {
   CheckCircle2,
   Info,
   MapPin,
-  ShieldAlert,
   Users,
   Paperclip,
-  Sparkles,
-  AlertTriangle,
   History
 } from 'lucide-react';
-import { analyzeActivityRisk } from '../services/aiService';
 import { ActivityCase } from '../types';
 
 interface WizardProps {
@@ -25,17 +21,19 @@ interface WizardProps {
 export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) => {
   const { t, translate } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
-  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [formData, setFormData] = useState({
     title: baseCase?.title || '',
-    description: baseCase?.description || ''
+    description: baseCase?.description || '',
+    startTime: baseCase?.startTime || '',
+    endTime: baseCase?.endTime || '',
+    location: baseCase?.location || '14F Briefing Room',
+    managers: baseCase?.members || [],
   });
-  const [aiResult, setAiResult] = useState<any>(null);
+  const [managers, setManagers] = useState<string[]>(formData.managers);
 
   const STEPS = [
     { id: 'info', title: t.wizard.steps.basicInfo, icon: Info },
     { id: 'location', title: t.wizard.steps.timeAndVenue, icon: MapPin },
-    { id: 'risk', title: t.wizard.steps.riskAndPolicies, icon: ShieldAlert },
     { id: 'members', title: t.wizard.steps.team, icon: Users },
     { id: 'attachments', title: t.wizard.steps.attachments, icon: Paperclip },
   ];
@@ -43,12 +41,23 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
   const next = () => setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
   const back = () => setCurrentStep(prev => Math.max(prev - 1, 0));
 
-  const runAiAnalysis = async () => {
-    if (!formData.title || !formData.description) return;
-    setIsAiAnalyzing(true);
-    const result = await analyzeActivityRisk(formData.title, formData.description);
-    setAiResult(result);
-    setIsAiAnalyzing(false);
+  const managerOptions = [
+    { id: 'user-1', name: 'Jane User', role: 'Activity Manager' },
+    { id: 'user-2', name: 'Alex Admin', role: 'Policy Admin' },
+    { id: 'user-3', name: 'Taylor Lee', role: 'Operations Lead' },
+  ];
+
+  const toggleManager = (id: string) => {
+    setManagers(prev => {
+      if (prev.includes(id)) {
+        const nextManagers = prev.filter(managerId => managerId !== id);
+        setFormData(current => ({ ...current, managers: nextManagers }));
+        return nextManagers;
+      }
+      const nextManagers = [...prev, id];
+      setFormData(current => ({ ...current, managers: nextManagers }));
+      return nextManagers;
+    });
   };
 
   return (
@@ -117,44 +126,68 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
             </div>
           )}
 
-          {currentStep === 2 && (
+          {currentStep === 1 && (
             <div className="space-y-6">
-              <div className="flex justify-between items-center border-b pb-4">
-                <h3 className="text-lg font-bold">{t.wizard.riskAssessment}</h3>
-                <button
-                  onClick={runAiAnalysis}
-                  disabled={isAiAnalyzing || !formData.title}
-                  className="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                >
-                  <Sparkles size={14} className={isAiAnalyzing ? "animate-spin" : ""} />
-                  <span>{isAiAnalyzing ? t.wizard.policyVerification : t.wizard.runAiAnalysis}</span>
-                </button>
+              <h3 className="text-lg font-bold border-b pb-4">{t.wizard.steps.timeAndVenue}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{t.activity.startTime}</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{t.activity.endTime}</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.endTime}
+                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{t.activity.location}</label>
+                  <select
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="14F Briefing Room">14F Briefing Room</option>
+                    <option value="15F Briefing Room">15F Briefing Room</option>
+                    <option value="1F Auditorium">1F Auditorium</option>
+                  </select>
+                </div>
               </div>
-
-              {aiResult ? (
-                <div className="space-y-4 animate-in slide-in-from-top-2">
-                   <div className={`p-4 rounded-lg border flex items-start space-x-4 ${
-                     aiResult.riskLevel === 'HIGH' ? 'bg-rose-50 border-rose-100' : 'bg-blue-50 border-blue-100'
-                   }`}>
-                      <div className={`p-2 rounded-full ${aiResult.riskLevel === 'HIGH' ? 'bg-rose-200 text-rose-700' : 'bg-blue-200 text-blue-700'}`}>
-                        <AlertTriangle size={20} />
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-900">{t.wizard.analysisResult}: {aiResult.riskLevel}</div>
-                        <p className="text-sm text-slate-600 mt-1">{aiResult.reasoning}</p>
-                      </div>
-                   </div>
-                </div>
-              ) : (
-                <div className="p-20 text-center border-2 border-dashed border-slate-100 rounded-xl text-slate-400">
-                  <Sparkles className="mx-auto mb-4 opacity-20" size={48} />
-                  <p>{t.wizard.runAnalysisPrompt}</p>
-                </div>
-              )}
             </div>
           )}
 
-          {currentStep !== 0 && currentStep !== 2 && (
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-bold border-b pb-4">{t.activity.members}</h3>
+              <p className="text-sm text-slate-500">Selected managers can edit activity details and display the QR code.</p>
+              <div className="space-y-3">
+                {managerOptions.map(manager => (
+                  <label key={manager.id} className="flex items-center justify-between border rounded-lg p-3 hover:bg-slate-50">
+                    <div>
+                      <div className="font-bold text-slate-900">{manager.name}</div>
+                      <div className="text-xs text-slate-500">{manager.role} • {manager.id}</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={managers.includes(manager.id)}
+                      onChange={() => toggleManager(manager.id)}
+                      className="h-4 w-4 text-blue-600 border-slate-300 rounded"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {currentStep !== 0 && currentStep !== 1 && currentStep !== 2 && (
              <div className="flex flex-col items-center justify-center h-full text-slate-400 py-20">
                 <div className="bg-slate-50 p-6 rounded-full mb-4"><Info size={32} className="opacity-20" /></div>
                 <p>{translate('wizard.standardFieldsPlaceholder', { step: STEPS[currentStep].title })}</p>

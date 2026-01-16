@@ -1,0 +1,1698 @@
+openapi: 3.0.3
+info:
+  title: CaseCheck API
+  version: 1.0.0
+  description: |-
+    ## CaseCheck API - 活動案件管理系統
+
+    提供活動案件建立、審核、出席與稽核等功能的 API 規格，作為前後端共同遵循的介面契約。
+
+    ### 主要功能
+    - **身分驗證與授權**：JWT 驗證，角色與權限控制
+    - **活動管理**：建立、更新、審核與查詢活動案件
+    - **QR Code 出席**：報到、簽退與出席統計
+    - **稽核軌跡**：完整的操作紀錄與合規支援
+
+    ### API 慣例
+    - 回應採用一致的成功/錯誤格式
+    - 清單 API 支援分頁與篩選
+    - 時間格式皆為 ISO 8601（UTC）
+servers:
+  - url: http://localhost:8000
+    description: 本機開發環境
+
+tags:
+  - name: Health
+    description: 健康檢查
+  - name: Auth
+    description: 身分驗證
+  - name: Activities
+    description: 活動案件
+  - name: Attendance
+    description: 出席與 QR Code
+  - name: Users
+    description: 使用者
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: 健康檢查
+      description: 取得服務健康狀態與版本資訊
+      responses:
+        "200":
+          description: 健康狀態正常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthCheckResponse"
+
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: 使用者登入
+      description: 驗證帳密並回傳 JWT Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserLogin"
+      responses:
+        "200":
+          description: 登入成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseTokenResponse"
+        "401":
+          description: 帳號或密碼錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: 使用者註冊
+      description: 建立新使用者帳號
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreate"
+      responses:
+        "201":
+          description: 註冊成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseUserResponse"
+        "400":
+          description: 輸入資料無效或使用者已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 更新存取 Token
+      description: 使用 Refresh Token 取得新的 Access Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Token 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseTokenResponse"
+        "401":
+          description: Refresh Token 無效或過期
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: 使用者登出
+      description: 登出並清除用戶端 Token
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseMessage"
+
+  /v1/activities:
+    post:
+      tags: [Activities]
+      summary: 建立活動案件
+      description: 建立新的活動案件並執行風險評估
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityCaseCreate"
+      responses:
+        "201":
+          description: 活動建立成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseActivityCaseResponse"
+        "400":
+          description: 輸入資料無效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      tags: [Activities]
+      summary: 取得活動清單
+      description: 取得分頁與篩選的活動案件列表
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 頁碼
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 每頁筆數
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ActivityStatusEnum"
+          description: 依狀態篩選
+        - in: query
+          name: creator_id
+          schema:
+            type: string
+          description: 依建立者篩選
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: 依標題或描述搜尋
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponseActivityCaseResponse"
+
+  /v1/activities/{activity_id}:
+    get:
+      tags: [Activities]
+      summary: 取得活動詳情
+      description: 取得指定活動案件詳細資訊
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseActivityCaseResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Activities]
+      summary: 更新活動案件
+      description: 更新活動案件資料
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityCaseUpdate"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseActivityCaseResponse"
+        "403":
+          description: 狀態不允許更新
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Activities]
+      summary: 刪除活動案件
+      description: 刪除（取消）指定活動案件
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      responses:
+        "200":
+          description: 刪除成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseMessage"
+        "403":
+          description: 狀態不允許刪除
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/activities/{activity_id}/approve:
+    post:
+      tags: [Activities]
+      summary: 核准活動
+      description: 核准待審活動案件
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityApprovalRequest"
+      responses:
+        "200":
+          description: 核准成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseActivityCaseResponse"
+        "403":
+          description: 權限不足或職責分離限制
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/activities/{activity_id}/reject:
+    post:
+      tags: [Activities]
+      summary: 駁回活動
+      description: 駁回待審活動案件
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityRejectionRequest"
+      responses:
+        "200":
+          description: 駁回成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseActivityCaseResponse"
+        "403":
+          description: 權限不足或職責分離限制
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/activities/{activity_id}/submit:
+    post:
+      tags: [Activities]
+      summary: 送審活動
+      description: 將草稿活動送出審核
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      responses:
+        "200":
+          description: 送審成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseActivityCaseResponse"
+        "400":
+          description: 狀態不允許送審
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/activities/{activity_id}/participants:
+    get:
+      tags: [Activities]
+      summary: 取得活動參與者
+      description: 取得已報名的參與者清單
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseParticipantList"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/register:
+    post:
+      tags: [Attendance]
+      summary: 報名活動
+      description: 報名指定活動
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceRecordCreate"
+      responses:
+        "201":
+          description: 報名成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseAttendanceRecordResponse"
+        "400":
+          description: 活動額滿或報名截止
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 已報名
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/check-in:
+    post:
+      tags: [Attendance]
+      summary: 活動報到
+      description: 使用 QR Code 進行報到
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceCheckIn"
+      responses:
+        "200":
+          description: 報到成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseAttendanceRecordResponse"
+        "400":
+          description: QR Code 無效或未報名
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動或出席紀錄
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/check-out:
+    post:
+      tags: [Attendance]
+      summary: 活動簽退
+      description: 使用 QR Code 進行簽退
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceCheckIn"
+      responses:
+        "200":
+          description: 簽退成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseAttendanceRecordResponse"
+        "400":
+          description: QR Code 無效或未報到
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到活動或出席紀錄
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/activity/{activity_id}:
+    get:
+      tags: [Attendance]
+      summary: 取得活動出席紀錄
+      description: 取得指定活動的所有出席紀錄
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseAttendanceRecordList"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/activity/{activity_id}/stats:
+    get:
+      tags: [Attendance]
+      summary: 取得出席統計
+      description: 取得指定活動的出席統計
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: activity_id
+          required: true
+          schema:
+            type: string
+          description: 活動 ID
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseAttendanceStatsResponse"
+        "404":
+          description: 找不到活動
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/qr-code:
+    post:
+      tags: [Attendance]
+      summary: 產生 QR Code
+      description: 產生活動報到/簽退用的 QR Code
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QRCodeCreate"
+      responses:
+        "201":
+          description: QR Code 產生成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseQRCodeResponse"
+        "403":
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/attendance/qr-code/{qr_code}:
+    get:
+      tags: [Attendance]
+      summary: 驗證 QR Code
+      description: 驗證 QR Code 是否有效並取得詳細資訊
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: qr_code
+          required: true
+          schema:
+            type: string
+          description: QR Code 字串
+      responses:
+        "200":
+          description: QR Code 有效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseQRCodeResponse"
+        "400":
+          description: QR Code 已過期或停用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 找不到 QR Code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/users/me:
+    get:
+      tags: [Users]
+      summary: 取得自己資料
+      description: 取得已登入使用者的個人資料
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseUserResponse"
+        "401":
+          description: 尚未登入
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Users]
+      summary: 更新自己資料
+      description: 更新已登入使用者的個人資料
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseUserResponse"
+        "400":
+          description: 輸入資料無效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/users:
+    get:
+      tags: [Users]
+      summary: 取得使用者清單
+      description: 取得分頁與篩選的使用者列表（僅 ADMIN）
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 頁碼
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 每頁筆數
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: 依帳號、Email 或姓名搜尋
+        - in: query
+          name: role
+          schema:
+            type: string
+          description: 依角色篩選
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponseUserResponse"
+        "403":
+          description: 權限不足
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/users/{user_id}:
+    get:
+      tags: [Users]
+      summary: 取得使用者詳情
+      description: 依使用者 ID 取得使用者資料
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: 使用者 ID
+      responses:
+        "200":
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponseUserResponse"
+        "404":
+          description: 找不到使用者
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthCheckResponse:
+      type: object
+      description: 健康檢查回應
+      properties:
+        status:
+          type: string
+          description: 服務狀態
+        version:
+          type: string
+          description: API 版本
+        timestamp:
+          type: string
+          format: date-time
+          description: 伺服器時間（UTC）
+        database:
+          type: string
+          description: 資料庫連線狀態
+      required: [status, version, timestamp, database]
+
+    SuccessResponseTokenResponse:
+      type: object
+      description: 成功回應（Token）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          $ref: "#/components/schemas/TokenResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseUserResponse:
+      type: object
+      description: 成功回應（使用者）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          $ref: "#/components/schemas/UserResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseActivityCaseResponse:
+      type: object
+      description: 成功回應（活動案件）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          $ref: "#/components/schemas/ActivityCaseResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseAttendanceRecordResponse:
+      type: object
+      description: 成功回應（出席紀錄）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          $ref: "#/components/schemas/AttendanceRecordResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseQRCodeResponse:
+      type: object
+      description: 成功回應（QR Code）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          $ref: "#/components/schemas/QRCodeResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseAttendanceStatsResponse:
+      type: object
+      description: 成功回應（出席統計）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          $ref: "#/components/schemas/AttendanceStatsResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseMessage:
+      type: object
+      description: 成功回應（訊息）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          type: object
+          description: 訊息內容
+          properties:
+            message:
+              type: string
+              description: 訊息
+          required: [message]
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseParticipantList:
+      type: object
+      description: 成功回應（參與者清單）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          type: array
+          description: 參與者列表
+          items:
+            $ref: "#/components/schemas/UserBasicInfo"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    SuccessResponseAttendanceRecordList:
+      type: object
+      description: 成功回應（出席紀錄清單）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          type: array
+          description: 出席紀錄列表
+          items:
+            $ref: "#/components/schemas/AttendanceRecordResponse"
+        message:
+          type: string
+          description: 可選訊息
+      required: [success, data]
+
+    PaginatedResponseActivityCaseResponse:
+      type: object
+      description: 分頁回應（活動案件）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          type: array
+          description: 活動案件列表
+          items:
+            $ref: "#/components/schemas/ActivityCaseResponse"
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [success, data, pagination]
+
+    PaginatedResponseUserResponse:
+      type: object
+      description: 分頁回應（使用者）
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: true
+        data:
+          type: array
+          description: 使用者列表
+          items:
+            $ref: "#/components/schemas/UserResponse"
+        pagination:
+          $ref: "#/components/schemas/PaginationMeta"
+      required: [success, data, pagination]
+
+    PaginationMeta:
+      type: object
+      description: 分頁資訊
+      properties:
+        page:
+          type: integer
+          description: 目前頁碼
+          minimum: 1
+        per_page:
+          type: integer
+          description: 每頁筆數
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          description: 總筆數
+          minimum: 0
+        total_pages:
+          type: integer
+          description: 總頁數
+          minimum: 0
+        has_next:
+          type: boolean
+          description: 是否有下一頁
+        has_prev:
+          type: boolean
+          description: 是否有上一頁
+      required: [page, per_page, total, total_pages, has_next, has_prev]
+
+    ErrorResponse:
+      type: object
+      description: 錯誤回應
+      properties:
+        success:
+          type: boolean
+          description: 是否成功
+          default: false
+        error:
+          type: object
+          description: 錯誤資訊
+          properties:
+            code:
+              type: string
+              description: 錯誤代碼
+            message:
+              type: string
+              description: 錯誤訊息
+            details:
+              type: object
+              description: 錯誤細節
+          required: [code, message]
+      required: [success, error]
+
+    RefreshTokenRequest:
+      type: object
+      description: Refresh Token 請求
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh Token
+      required: [refresh_token]
+
+    UserBase:
+      type: object
+      description: 使用者基礎資料
+      properties:
+        username:
+          type: string
+          description: 使用者帳號
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          description: Email
+        full_name:
+          type: string
+          description: 姓名
+          minLength: 1
+          maxLength: 100
+        phone:
+          type: string
+          description: 聯絡電話
+          maxLength: 20
+          nullable: true
+        department:
+          type: string
+          description: 部門
+          maxLength: 100
+          nullable: true
+      required: [username, email, full_name]
+
+    UserCreate:
+      allOf:
+        - $ref: "#/components/schemas/UserBase"
+        - type: object
+          description: 使用者註冊資料
+          properties:
+            password:
+              type: string
+              description: 密碼（至少 8 碼）
+              minLength: 8
+              maxLength: 100
+          required: [password]
+
+    UserUpdate:
+      type: object
+      description: 使用者更新資料
+      properties:
+        full_name:
+          type: string
+          description: 姓名
+          minLength: 1
+          maxLength: 100
+          nullable: true
+        phone:
+          type: string
+          description: 聯絡電話
+          maxLength: 20
+          nullable: true
+        department:
+          type: string
+          description: 部門
+          maxLength: 100
+          nullable: true
+        profile_image_url:
+          type: string
+          description: 頭像 URL
+          maxLength: 500
+          nullable: true
+
+    UserLogin:
+      type: object
+      description: 登入資料
+      properties:
+        username:
+          type: string
+          description: 帳號或 Email
+        password:
+          type: string
+          description: 密碼
+      required: [username, password]
+
+    TokenResponse:
+      type: object
+      description: Token 回應
+      properties:
+        access_token:
+          type: string
+          description: Access Token（15 分鐘）
+        refresh_token:
+          type: string
+          description: Refresh Token（7 天）
+        token_type:
+          type: string
+          description: Token 類型
+          default: bearer
+        expires_in:
+          type: integer
+          description: Access Token 有效秒數
+      required: [access_token, refresh_token, token_type, expires_in]
+
+    RoleResponse:
+      type: object
+      description: 角色資料
+      properties:
+        id:
+          type: string
+          description: 角色 ID
+        name:
+          type: string
+          description: 角色名稱（ADMIN, USER, GUEST）
+        description:
+          type: string
+          description: 角色描述
+          nullable: true
+        is_system:
+          type: boolean
+          description: 是否為系統角色
+      required: [id, name, is_system]
+
+    PermissionResponse:
+      type: object
+      description: 權限資料
+      properties:
+        id:
+          type: string
+          description: 權限 ID
+        resource:
+          type: string
+          description: 資源名稱
+        action:
+          type: string
+          description: 動作
+        description:
+          type: string
+          description: 權限描述
+          nullable: true
+      required: [id, resource, action]
+
+    UserResponse:
+      allOf:
+        - $ref: "#/components/schemas/UserBase"
+        - type: object
+          description: 使用者回應資料
+          properties:
+            id:
+              type: string
+              description: 使用者 ID
+            is_active:
+              type: boolean
+              description: 是否啟用
+            is_verified:
+              type: boolean
+              description: Email 是否已驗證
+            last_login_at:
+              type: string
+              format: date-time
+              description: 最近登入時間
+              nullable: true
+            profile_image_url:
+              type: string
+              description: 頭像 URL
+              nullable: true
+            created_at:
+              type: string
+              format: date-time
+              description: 建立時間
+            updated_at:
+              type: string
+              format: date-time
+              description: 更新時間
+            roles:
+              type: array
+              description: 使用者角色
+              items:
+                $ref: "#/components/schemas/RoleResponse"
+          required: [id, is_active, is_verified, created_at, updated_at, roles]
+
+    ActivityStatusEnum:
+      type: string
+      description: 活動狀態
+      enum:
+        - DRAFT
+        - PENDING_APPROVAL
+        - APPROVED
+        - REJECTED
+        - IN_PROGRESS
+        - COMPLETED
+        - CANCELLED
+
+    RiskLevelEnum:
+      type: string
+      description: 風險等級
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - CRITICAL
+
+    ActivityTypeResponse:
+      type: object
+      description: 活動類型
+      properties:
+        id:
+          type: string
+          description: 活動類型 ID
+        name:
+          type: string
+          description: 類型名稱
+        description:
+          type: string
+          description: 類型描述
+          nullable: true
+        icon:
+          type: string
+          description: 圖示
+          nullable: true
+        color:
+          type: string
+          description: 顏色代碼
+          nullable: true
+        requires_approval:
+          type: boolean
+          description: 是否需要審核
+        default_risk_level:
+          $ref: "#/components/schemas/RiskLevelEnum"
+      required: [id, name, requires_approval, default_risk_level]
+
+    ActivityCaseBase:
+      type: object
+      description: 活動案件基礎資料
+      properties:
+        title:
+          type: string
+          description: 活動標題
+          minLength: 5
+          maxLength: 200
+        description:
+          type: string
+          description: 活動描述
+          minLength: 10
+        activity_type_id:
+          type: string
+          description: 活動類型 ID
+        start_date:
+          type: string
+          format: date-time
+          description: 開始時間
+        end_date:
+          type: string
+          format: date-time
+          description: 結束時間
+        location:
+          type: string
+          description: 活動地點
+          minLength: 3
+          maxLength: 200
+        venue_details:
+          type: string
+          description: 場地細節
+          nullable: true
+        max_participants:
+          type: integer
+          description: 最大參與人數
+          minimum: 1
+          maximum: 10000
+      required:
+        - title
+        - description
+        - activity_type_id
+        - start_date
+        - end_date
+        - location
+        - max_participants
+
+    ActivityCaseCreate:
+      allOf:
+        - $ref: "#/components/schemas/ActivityCaseBase"
+        - type: object
+          description: 建立活動案件
+          properties:
+            risk_level:
+              $ref: "#/components/schemas/RiskLevelEnum"
+
+    ActivityCaseUpdate:
+      type: object
+      description: 更新活動案件
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+          nullable: true
+        description:
+          type: string
+          minLength: 10
+          nullable: true
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        end_date:
+          type: string
+          format: date-time
+          nullable: true
+        location:
+          type: string
+          minLength: 3
+          maxLength: 200
+          nullable: true
+        venue_details:
+          type: string
+          nullable: true
+        max_participants:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          nullable: true
+
+    ActivityApprovalRequest:
+      type: object
+      description: 核准活動請求
+      properties:
+        comment:
+          type: string
+          description: 核准意見
+          nullable: true
+
+    ActivityRejectionRequest:
+      type: object
+      description: 駁回活動請求
+      properties:
+        reason:
+          type: string
+          description: 駁回原因
+          minLength: 10
+      required: [reason]
+
+    UserBasicInfo:
+      type: object
+      description: 參與者基本資料
+      properties:
+        id:
+          type: string
+          description: 使用者 ID
+        username:
+          type: string
+          description: 使用者帳號
+        full_name:
+          type: string
+          description: 姓名
+        email:
+          type: string
+          format: email
+          description: Email
+      required: [id, username, full_name, email]
+
+    ActivityCaseResponse:
+      allOf:
+        - $ref: "#/components/schemas/ActivityCaseBase"
+        - type: object
+          description: 活動案件回應
+          properties:
+            id:
+              type: string
+              description: 活動案件 ID
+            case_number:
+              type: string
+              description: 案件編號（如 C-9022）
+            status:
+              $ref: "#/components/schemas/ActivityStatusEnum"
+            risk_level:
+              $ref: "#/components/schemas/RiskLevelEnum"
+            risk_assessment:
+              type: string
+              description: 風險評估內容
+              nullable: true
+            current_participants:
+              type: integer
+              description: 目前參與人數
+            created_at:
+              type: string
+              format: date-time
+              description: 建立時間
+            updated_at:
+              type: string
+              format: date-time
+              description: 更新時間
+            approved_by_id:
+              type: string
+              description: 核准者 ID
+              nullable: true
+            approved_at:
+              type: string
+              format: date-time
+              description: 核准時間
+              nullable: true
+            rejected_by_id:
+              type: string
+              description: 駁回者 ID
+              nullable: true
+            rejected_at:
+              type: string
+              format: date-time
+              description: 駁回時間
+              nullable: true
+            rejection_reason:
+              type: string
+              description: 駁回原因
+              nullable: true
+            creator_id:
+              type: string
+              description: 建立者 ID
+            activity_type:
+              $ref: "#/components/schemas/ActivityTypeResponse"
+          required:
+            - id
+            - case_number
+            - status
+            - risk_level
+            - current_participants
+            - created_at
+            - updated_at
+            - creator_id
+            - activity_type
+
+    AttendanceStatusEnum:
+      type: string
+      description: 出席狀態
+      enum:
+        - REGISTERED
+        - CHECKED_IN
+        - CHECKED_OUT
+        - ABSENT
+        - CANCELLED
+
+    AttendanceRecordCreate:
+      type: object
+      description: 出席報名資料
+      properties:
+        activity_id:
+          type: string
+          description: 活動 ID
+        notes:
+          type: string
+          description: 備註
+          nullable: true
+      required: [activity_id]
+
+    AttendanceCheckIn:
+      type: object
+      description: 報到/簽退資料
+      properties:
+        qr_code:
+          type: string
+          description: QR Code
+        notes:
+          type: string
+          description: 備註
+          nullable: true
+      required: [qr_code]
+
+    AttendanceRecordResponse:
+      type: object
+      description: 出席紀錄回應
+      properties:
+        id:
+          type: string
+          description: 出席紀錄 ID
+        activity_id:
+          type: string
+          description: 活動 ID
+        user_id:
+          type: string
+          description: 使用者 ID
+        status:
+          $ref: "#/components/schemas/AttendanceStatusEnum"
+        registered_at:
+          type: string
+          format: date-time
+          description: 報名時間
+        checked_in_at:
+          type: string
+          format: date-time
+          description: 報到時間
+          nullable: true
+        checked_out_at:
+          type: string
+          format: date-time
+          description: 簽退時間
+          nullable: true
+        qr_code_used:
+          type: string
+          description: 使用的 QR Code
+          nullable: true
+        check_in_method:
+          type: string
+          description: 報到方式（QR, MANUAL, AUTO）
+          nullable: true
+        location_verified:
+          type: boolean
+          description: 位置是否驗證
+        notes:
+          type: string
+          description: 備註
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: 建立時間
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新時間
+      required:
+        - id
+        - activity_id
+        - user_id
+        - status
+        - registered_at
+        - location_verified
+        - created_at
+        - updated_at
+
+    QRCodeCreate:
+      type: object
+      description: 產生 QR Code 資料
+      properties:
+        activity_id:
+          type: string
+          description: 活動 ID
+        valid_from:
+          type: string
+          format: date-time
+          description: 生效時間
+        valid_until:
+          type: string
+          format: date-time
+          description: 失效時間
+        code_type:
+          type: string
+          description: 類型（CHECK_IN, CHECK_OUT, BOTH）
+        max_uses:
+          type: integer
+          description: 最大使用次數
+          minimum: 1
+          nullable: true
+      required: [activity_id, valid_from, valid_until, code_type]
+
+    QRCodeResponse:
+      type: object
+      description: QR Code 回應
+      properties:
+        id:
+          type: string
+          description: QR Code ID
+        activity_id:
+          type: string
+          description: 活動 ID
+        code:
+          type: string
+          description: QR Code 字串
+        valid_from:
+          type: string
+          format: date-time
+          description: 生效時間
+        valid_until:
+          type: string
+          format: date-time
+          description: 失效時間
+        is_active:
+          type: boolean
+          description: 是否啟用
+        max_uses:
+          type: integer
+          description: 最大使用次數
+          nullable: true
+        current_uses:
+          type: integer
+          description: 已使用次數
+        code_type:
+          type: string
+          description: 類型（CHECK_IN, CHECK_OUT, BOTH）
+        generated_by_id:
+          type: string
+          description: 產生者 ID
+        created_at:
+          type: string
+          format: date-time
+          description: 建立時間
+      required:
+        - id
+        - activity_id
+        - code
+        - valid_from
+        - valid_until
+        - is_active
+        - current_uses
+        - code_type
+        - generated_by_id
+        - created_at
+
+    AttendanceStatsResponse:
+      type: object
+      description: 出席統計
+      properties:
+        activity_id:
+          type: string
+          description: 活動 ID
+        total_registered:
+          type: integer
+          description: 報名總人數
+        checked_in:
+          type: integer
+          description: 已報到人數
+        checked_out:
+          type: integer
+          description: 已簽退人數
+        absent:
+          type: integer
+          description: 未出席人數
+        attendance_rate:
+          type: number
+          format: float
+          description: 出席率（0-100）
+      required:
+        - activity_id
+        - total_registered
+        - checked_in
+        - checked_out
+        - absent
+        - attendance_rate

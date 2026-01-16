@@ -43,11 +43,12 @@ export const zhTW = {
   // Status
   status: {
     DRAFT: '草稿',
-    SUBMITTED: '已提交',
+    PENDING_APPROVAL: '待審核',
     APPROVED: '已核准',
     REJECTED: '已拒絕',
-    ONGOING: '進行中',
-    CLOSED: '已結束',
+    IN_PROGRESS: '進行中',
+    COMPLETED: '已完成',
+    CANCELLED: '已取消',
     ACTIVE: '啟用',
     INACTIVE: '停用',
   },
@@ -57,6 +58,7 @@ export const zhTW = {
     LOW: '低風險',
     MEDIUM: '中風險',
     HIGH: '高風險',
+    CRITICAL: '重大風險',
   },
 
   // Navigation

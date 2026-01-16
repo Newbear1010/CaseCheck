@@ -825,11 +825,11 @@ export enum Role {
 
 export enum CaseStatus {
   DRAFT = 'DRAFT',
-  SUBMITTED = 'SUBMITTED',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  ONGOING = 'ONGOING',
-  CLOSED = 'CLOSED'
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED'
 }
 
 export interface User {

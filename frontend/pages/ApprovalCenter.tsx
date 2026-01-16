@@ -13,7 +13,7 @@ const MOCK_SUBMISSIONS: ActivityCase[] = [
     id: 'C-9501',
     title: 'Strategic Planning Offsite',
     description: 'Executive retreat for 2025 roadmap planning.',
-    status: CaseStatus.SUBMITTED,
+    status: CaseStatus.PENDING_APPROVAL,
     creatorId: 'user-2',
     createdAt: '2024-05-21',
     startTime: '2024-06-10T09:00:00',

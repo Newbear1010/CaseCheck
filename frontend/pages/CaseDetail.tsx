@@ -85,7 +85,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
   if (showScanner) return <CheckInModule onDismiss={() => setShowScanner(false)} />;
 
   const isRejected = activity.status === CaseStatus.REJECTED;
-  const isOngoing = activity.status === CaseStatus.ONGOING;
+  const isOngoing = activity.status === CaseStatus.IN_PROGRESS;
 
   return (
     <div className="space-y-6">
@@ -116,13 +116,15 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               </PermissionWrapper>
 
               {isOngoing && (
-                <button
-                  onClick={() => setShowQRDisplay(true)}
-                  className="flex items-center space-x-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-md transition-all"
-                >
-                  <QrCode size={16} />
-                  <span>{t.activity.displayQR}</span>
-                </button>
+                <PermissionWrapper action="activity:qr-display" resource={activity} fallback="hide">
+                  <button
+                    onClick={() => setShowQRDisplay(true)}
+                    className="flex items-center space-x-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-md transition-all"
+                  >
+                    <QrCode size={16} />
+                    <span>{t.activity.displayQR}</span>
+                  </button>
+                </PermissionWrapper>
               )}
             </>
           )}
@@ -154,7 +156,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <span className="mono text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded tracking-widest border">#{activity.id}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                 activity.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' :
-                activity.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
+                activity.status === CaseStatus.IN_PROGRESS ? 'bg-green-100 text-green-700' :
                 activity.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
               }`}>{t.status[activity.status]}</span>
             </div>

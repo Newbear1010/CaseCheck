@@ -87,7 +87,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, activePage, onNavi
             <nav className="space-y-1">
               <NavItem icon={LayoutDashboard} label={t.nav.dashboard} id="dashboard" />
               <NavItem icon={ClipboardList} label={t.nav.activities} id="activities" />
-              <NavItem icon={PlusSquare} label={t.nav.newActivity} id="create" action="activity:edit" />
+              <NavItem icon={PlusSquare} label={t.nav.newActivity} id="create" action="activity:create" />
               <NavItem icon={ShieldCheck} label={t.nav.approvalCenter} id="approvals" action="activity:approve" />
               <NavItem icon={FileText} label={t.nav.systemReports} id="reports" action="admin:policy_manage" />
             </nav>
@@ -101,7 +101,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, activePage, onNavi
               <Globe size={20} />
               <span className="font-medium">{locale === 'zh-TW' ? 'English' : '中文'}</span>
             </button>
-            <NavItem icon={Settings} label={t.nav.settings} id="settings" />
+            <NavItem icon={Settings} label={t.nav.settings} id="settings" action="admin:user_manage" />
             <button
               onClick={logout}
               className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-red-900/20 hover:text-red-400 transition-colors"
