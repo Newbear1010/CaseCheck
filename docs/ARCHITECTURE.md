@@ -460,7 +460,7 @@ Context (環境):        - owner_id
 │      "type": "activity_case",                          │
 │      "id": "C-9021",                                   │
 │      "owner_id": "user-456",                           │
-│      "status": "SUBMITTED",                            │
+│      "status": "PENDING_APPROVAL",                            │
 │      "risk_level": "MEDIUM"                            │
 │    },                                                  │
 │    "context": {                                        │
@@ -565,7 +565,7 @@ deny[reason] if {
 # Rule: 只有在活動時間內可以簽到
 allow if {
     input.action == "activity.check_in"
-    input.resource.status in ["APPROVED", "ONGOING"]
+    input.resource.status in ["APPROVED", "IN_PROGRESS"]
     time_in_range(input.context.time, input.resource.start_time, input.resource.end_time)
 }
 

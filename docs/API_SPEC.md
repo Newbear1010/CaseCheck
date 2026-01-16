@@ -193,7 +193,7 @@ GET /v1/activities?page=2&limit=50&sort=-created_at
 | `ne` | 不等於 | `?status=ne:DRAFT` |
 | `gt` | 大於 | `?created_at=gt:2024-05-01` |
 | `lt` | 小於 | `?created_at=lt:2024-06-01` |
-| `in` | 包含 | `?status=in:APPROVED,ONGOING` |
+| `in` | 包含 | `?status=in:APPROVED,IN_PROGRESS` |
 | `like` | 模糊匹配 | `?title=like:Launch` |
 
 ---
@@ -328,7 +328,7 @@ Authorization: Bearer <access_token>
 **查詢參數**:
 | 參數 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| `status` | string | ❌ | 過濾狀態（DRAFT/SUBMITTED/APPROVED/REJECTED/ONGOING/CLOSED）|
+| `status` | string | ❌ | 過濾狀態（DRAFT/PENDING_APPROVAL/APPROVED/REJECTED/IN_PROGRESS/COMPLETED）|
 | `creator_id` | uuid | ❌ | 過濾創建者 |
 | `risk_level` | string | ❌ | 風險等級（LOW/MEDIUM/HIGH）|
 | `start_time_from` | datetime | ❌ | 開始時間範圍（起）|
@@ -352,7 +352,7 @@ GET /v1/activities?status=APPROVED&page=1&limit=20&sort=-start_time
         "id": "C-9021",
         "title": "Q3 Product Launch Event",
         "description": "Global launch event...",
-        "status": "ONGOING",
+        "status": "IN_PROGRESS",
         "location": "Main Auditorium",
         "start_time": "2024-05-20T09:00:00Z",
         "end_time": "2024-05-20T17:00:00Z",
@@ -401,7 +401,7 @@ Authorization: Bearer <access_token>
     "parent_id": null,
     "title": "Q3 Product Launch Event",
     "description": "Global launch event for the new enterprise suite involving 200+ partners.",
-    "status": "ONGOING",
+    "status": "IN_PROGRESS",
     "location": "Main Auditorium",
     "start_time": "2024-05-20T09:00:00Z",
     "end_time": "2024-05-20T17:00:00Z",
@@ -629,7 +629,7 @@ Authorization: Bearer <access_token>
   "success": true,
   "data": {
     "id": "C-9022",
-    "status": "SUBMITTED",
+    "status": "PENDING_APPROVAL",
     "submitted_at": "2024-05-20T12:00:00Z"
   }
 }
@@ -960,7 +960,7 @@ Authorization: Bearer <access_token>
       {
         "id": "C-9022",
         "title": "Q4 Team Building Event",
-        "status": "SUBMITTED",
+        "status": "PENDING_APPROVAL",
         "creator": {
           "id": "550e8400-e29b-41d4-a716-446655440002",
           "name": "Jane Smith"
@@ -1230,7 +1230,7 @@ Authorization: Bearer <access_token>
       {
         "id": "C-9021",
         "title": "Q3 Product Launch Event",
-        "status": "ONGOING",
+        "status": "IN_PROGRESS",
         "start_time": "2024-05-20T09:00:00Z"
       }
     ],

@@ -346,7 +346,7 @@ CREATE TABLE activity_cases (
 
     -- 狀態機
     status VARCHAR(20) DEFAULT 'DRAFT' NOT NULL CHECK (
-        status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'ONGOING', 'CLOSED')
+        status IN ('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED')
     ),
     rejection_reason TEXT,
 
@@ -409,7 +409,7 @@ EXECUTE FUNCTION update_updated_at_column();
 **範例資料**:
 ```sql
 INSERT INTO activity_cases (id, title, description, location, start_time, end_time, status, risk_level, creator_id) VALUES
-('C-9021', 'Q3 Product Launch Event', 'Global launch event for the new enterprise suite involving 200+ partners.', 'Main Auditorium', '2024-05-20 09:00:00+00', '2024-05-20 17:00:00+00', 'ONGOING', 'MEDIUM', '550e8400-e29b-41d4-a716-446655440001');
+('C-9021', 'Q3 Product Launch Event', 'Global launch event for the new enterprise suite involving 200+ partners.', 'Main Auditorium', '2024-05-20 09:00:00+00', '2024-05-20 17:00:00+00', 'IN_PROGRESS', 'MEDIUM', '550e8400-e29b-41d4-a716-446655440001');
 ```
 
 ---
@@ -658,7 +658,7 @@ COMMENT ON COLUMN audit_logs.policy_decision IS 'PDP 授權決策結果';
   "resource_id": "C-9021",
   "changes": {
     "before": {"status": "DRAFT", "title": "Old Title"},
-    "after": {"status": "SUBMITTED", "title": "New Title"}
+    "after": {"status": "PENDING_APPROVAL", "title": "New Title"}
   },
   "policy_decision": {
     "allow": true,
