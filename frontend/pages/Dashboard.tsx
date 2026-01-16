@@ -3,6 +3,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../context/I18nContext';
 import { Role, CaseStatus, ActivityCase } from '../types';
+import { PermissionWrapper } from '../components/PermissionWrapper';
 import {
   FileCheck,
   Clock,
@@ -10,7 +11,9 @@ import {
   ArrowRight,
   PlusCircle,
   Calendar,
-  ShieldCheck
+  ShieldCheck,
+  UserCheck,
+  Users
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -22,18 +25,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
   const { user } = useAuth();
   const { t, translate } = useI18n();
 
-  const stats = [
-    { label: t.dashboard.activeCases, count: 12, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: t.dashboard.pendingApprovals, count: 4, icon: FileCheck, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: t.dashboard.systemAlerts, count: 0, icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-50' },
-  ];
+  const role = user?.role ?? Role.USER;
+
+  const statsByRole = {
+    [Role.ADMIN]: [
+      { label: t.dashboard.activeCases, count: 12, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
+      { label: t.dashboard.pendingApprovals, count: 4, icon: FileCheck, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { label: t.dashboard.systemAlerts, count: 0, icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-50' },
+    ],
+    [Role.USER]: [
+      { label: t.dashboard.activeCases, count: 3, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50' },
+      { label: t.dashboard.pendingApprovals, count: 1, icon: FileCheck, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { label: t.dashboard.systemAlerts, count: 0, icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-50' },
+    ],
+    [Role.GUEST]: [
+      { label: t.attendance.totalCheckIns, count: 5, icon: UserCheck, color: 'text-green-600', bg: 'bg-green-50' },
+      { label: t.attendance.liveAttendance, count: 2, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+      { label: t.dashboard.systemAlerts, count: 0, icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-50' },
+    ]
+  };
+  const stats = statsByRole[role];
 
   // Mock data for dashboard
   const recentActivities = [
     {
       id: 'C-9021',
       title: 'Q3 Product Launch Event',
-      status: CaseStatus.ONGOING,
+      status: CaseStatus.IN_PROGRESS,
       date: '2024-05-20',
       description: 'Global launch event for the new enterprise suite involving 200+ partners.',
       creatorId: 'user-1',
@@ -78,7 +96,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h2 className="font-bold text-lg text-slate-900">{t.dashboard.recentActivities}</h2>
+            <h2 className="font-bold text-lg text-slate-900">
+              {role === Role.GUEST ? t.attendance.recentAccessLog : t.dashboard.recentActivities}
+            </h2>
             <button
               onClick={() => onNavigate('activities')}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
@@ -104,7 +124,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
                 </div>
                 <div className="flex items-center space-x-3">
                   <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                    activity.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
+                    activity.status === CaseStatus.IN_PROGRESS ? 'bg-green-100 text-green-700' :
                     activity.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' :
                     'bg-slate-100 text-slate-700'
                   }`}>
@@ -118,32 +138,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
         </div>
 
         <div className="space-y-6">
-          <div className="bg-slate-900 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="text-xl font-bold mb-2">{t.dashboard.needNewActivity}</h3>
-              <p className="text-slate-400 text-sm mb-6">{t.dashboard.needNewActivityDesc}</p>
-              <button
-                onClick={() => onNavigate('create')}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold transition-all transform hover:scale-105"
-              >
-                <PlusCircle size={20} />
-                <span>{t.dashboard.initializeCase}</span>
-              </button>
+          {role !== Role.GUEST ? (
+            <div className="bg-slate-900 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
+              <div className="relative z-10">
+                <h3 className="text-xl font-bold mb-2">{t.dashboard.needNewActivity}</h3>
+                <p className="text-slate-400 text-sm mb-6">{t.dashboard.needNewActivityDesc}</p>
+                <PermissionWrapper action="activity:create" fallback="hide">
+                  <button
+                    onClick={() => onNavigate('create')}
+                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold transition-all transform hover:scale-105"
+                  >
+                    <PlusCircle size={20} />
+                    <span>{t.dashboard.initializeCase}</span>
+                  </button>
+                </PermissionWrapper>
+              </div>
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <ShieldCheck size={120} />
+              </div>
             </div>
-            <div className="absolute top-0 right-0 p-8 opacity-10">
-              <ShieldCheck size={120} />
+          ) : (
+            <div className="bg-slate-900 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
+              <div className="relative z-10">
+                <h3 className="text-xl font-bold mb-2">{t.attendance.memberCheckIn}</h3>
+                <p className="text-slate-400 text-sm mb-6">{t.attendance.scanVerification}</p>
+                <button
+                  onClick={() => onNavigate('activities')}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-bold transition-all transform hover:scale-105"
+                >
+                  <UserCheck size={20} />
+                  <span>{t.activity.displayQR}</span>
+                </button>
+              </div>
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <ShieldCheck size={120} />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-            <h3 className="text-amber-800 font-bold flex items-center space-x-2 mb-2">
-              <AlertCircle size={18} />
-              <span>{t.dashboard.pendingDecisions}</span>
-            </h3>
-            <p className="text-amber-700 text-sm">
-              {t.dashboard.pendingDecisionsDesc}
-            </p>
-          </div>
+          {role === Role.ADMIN ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+              <h3 className="text-amber-800 font-bold flex items-center space-x-2 mb-2">
+                <AlertCircle size={18} />
+                <span>{t.dashboard.pendingDecisions}</span>
+              </h3>
+              <p className="text-amber-700 text-sm">
+                {t.dashboard.pendingDecisionsDesc}
+              </p>
+            </div>
+          ) : role === Role.USER ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+              <h3 className="text-blue-800 font-bold flex items-center space-x-2 mb-2">
+                <ShieldCheck size={18} />
+                <span>{t.dashboard.pendingApprovals}</span>
+              </h3>
+              <p className="text-blue-700 text-sm">
+                {t.approval.governanceQueue}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+              <h3 className="text-emerald-800 font-bold flex items-center space-x-2 mb-2">
+                <UserCheck size={18} />
+                <span>{t.attendance.visitorSignIn}</span>
+              </h3>
+              <p className="text-emerald-700 text-sm">
+                {t.attendance.visitorSignInDesc}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

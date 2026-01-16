@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { I18nProvider, useI18n } from './context/I18nContext';
 import { AppShell } from './components/AppShell';
+import { PermissionWrapper } from './components/PermissionWrapper';
 import { Dashboard } from './pages/Dashboard';
 import { ActivityWizard } from './pages/ActivityWizard';
 import { CaseDetail } from './pages/CaseDetail';
@@ -10,13 +11,13 @@ import { ApprovalCenter } from './pages/ApprovalCenter';
 import { AdminSystem } from './pages/AdminSystem';
 import { AttendanceReport } from './pages/AttendanceReport';
 import { Role, ActivityCase, CaseStatus } from './types';
-import { ShieldCheck, ArrowRight, User as UserIcon, ShieldQuestion } from 'lucide-react';
+import { ShieldCheck, ArrowRight, User as UserIcon, ShieldQuestion, QrCode, Download, MapPin, XCircle } from 'lucide-react';
 
 const MOCK_ACTIVITY: ActivityCase = {
   id: 'C-9021',
   title: 'Q3 Product Launch Event',
   description: 'Global launch event for the new enterprise suite involving 200+ partners. This event includes high-level stakeholders and requires strict security check-in protocols for all attendees.',
-  status: CaseStatus.ONGOING,
+  status: CaseStatus.IN_PROGRESS,
   creatorId: 'user-1',
   createdAt: '2024-05-01',
   startTime: '2024-05-20T09:00:00',
@@ -78,11 +79,57 @@ const LoginPage: React.FC = () => {
   );
 };
 
+const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> = ({ activity, onClose }) => {
+  const { t } = useI18n();
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-slate-950/90 flex items-center justify-center p-6 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center border-b pb-4">
+          <div className="text-left">
+            <h3 className="font-bold text-slate-900">{t.activity.checkInQR}</h3>
+            <p className="text-xs text-slate-500">{t.activity.scanForActivityId}: {activity.id}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button>
+        </div>
+
+        <div className="bg-slate-50 aspect-square rounded-2xl flex items-center justify-center border-2 border-slate-100 relative group">
+          <div className="w-48 h-48 bg-white p-4 rounded-xl shadow-inner border border-slate-200 grid grid-cols-4 grid-rows-4 gap-1">
+            {Array.from({ length: 16 }).map((_, i) => (
+              <div key={i} className={`${Math.random() > 0.4 ? 'bg-slate-900' : 'bg-transparent'} rounded-sm`}></div>
+            ))}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-white p-2 rounded-lg shadow-md border border-slate-100">
+                <QrCode size={32} className="text-blue-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-bold text-slate-800 uppercase tracking-widest">{activity.title}</h4>
+          <div className="flex items-center justify-center space-x-2 text-xs text-slate-500">
+            <MapPin size={12} />
+            <span>{activity.location}</span>
+          </div>
+        </div>
+
+        <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-slate-800 transition-colors">
+          <Download size={18} />
+          <span>{t.activity.saveAsImage}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const MainRouter: React.FC = () => {
+  const { user } = useAuth();
   const { t } = useI18n();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [selectedCase, setSelectedCase] = useState<ActivityCase | null>(null);
   const [remakeBase, setRemakeBase] = useState<ActivityCase | null>(null);
+  const [qrActivity, setQrActivity] = useState<ActivityCase | null>(null);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -108,12 +155,15 @@ const MainRouter: React.FC = () => {
       case 'create': return <ActivityWizard onComplete={() => handleNavigate('activities')} baseCase={remakeBase} />;
       case 'activities': return (
         <div className="space-y-6">
+          {qrActivity && <QRDisplayModal activity={qrActivity} onClose={() => setQrActivity(null)} />}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{t.nav.caseDirectory}</h1>
               <p className="text-slate-500 text-sm">{t.activity.centralizedManagement}</p>
             </div>
-            <button onClick={() => setCurrentPage('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors">{t.activity.createNewCase}</button>
+            <PermissionWrapper action="activity:create" fallback="hide">
+              <button onClick={() => setCurrentPage('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition-colors">{t.activity.createNewCase}</button>
+            </PermissionWrapper>
           </div>
           <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-left">
@@ -126,7 +176,7 @@ const MainRouter: React.FC = () => {
                     <td className="px-6 py-4">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                         c.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' :
-                        c.status === CaseStatus.ONGOING ? 'bg-green-100 text-green-700' :
+                        c.status === CaseStatus.IN_PROGRESS ? 'bg-green-100 text-green-700' :
                         c.status === CaseStatus.APPROVED ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
                       }`}>{t.status[c.status]}</span>
                     </td>
@@ -136,7 +186,14 @@ const MainRouter: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500">{t.risk[c.riskLevel]}</td>
                     <td className="px-6 py-4 text-right">
-                      <button onClick={() => setSelectedCase(c)} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">{t.activity.viewDetails}</button>
+                      <div className="flex items-center justify-end space-x-4">
+                        <button onClick={() => setSelectedCase(c)} className="text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">{t.activity.viewDetails}</button>
+                        {c.status === CaseStatus.IN_PROGRESS && (
+                          <PermissionWrapper action="activity:qr-display" resource={c} fallback="hide">
+                            <button onClick={() => setQrActivity(c)} className="text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-slate-700">{t.activity.displayQR}</button>
+                          </PermissionWrapper>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -148,7 +205,11 @@ const MainRouter: React.FC = () => {
       case 'approvals': return <ApprovalCenter onViewCase={handleViewCase} />;
       case 'reports': return <AttendanceReport />;
       case 'settings':
-      case 'admin_users': return <AdminSystem />;
+      case 'admin_users':
+        if (user?.role !== Role.ADMIN) {
+          return <div className="p-20 text-center text-slate-400">Access restricted.</div>;
+        }
+        return <AdminSystem />;
       default: return <div className="p-20 text-center text-slate-400">Section in development...</div>;
     }
   };

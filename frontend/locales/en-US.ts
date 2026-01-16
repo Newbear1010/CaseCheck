@@ -43,11 +43,12 @@ export const enUS = {
   // Status
   status: {
     DRAFT: 'Draft',
-    SUBMITTED: 'Submitted',
+    PENDING_APPROVAL: 'Pending Approval',
     APPROVED: 'Approved',
     REJECTED: 'Rejected',
-    ONGOING: 'Ongoing',
-    CLOSED: 'Closed',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
     ACTIVE: 'Active',
     INACTIVE: 'Inactive',
   },
@@ -57,6 +58,7 @@ export const enUS = {
     LOW: 'Low',
     MEDIUM: 'Medium',
     HIGH: 'High',
+    CRITICAL: 'Critical',
   },
 
   // Navigation

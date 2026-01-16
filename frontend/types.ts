@@ -7,11 +7,12 @@ export enum Role {
 
 export enum CaseStatus {
   DRAFT = 'DRAFT',
-  SUBMITTED = 'SUBMITTED',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  ONGOING = 'ONGOING',
-  CLOSED = 'CLOSED'
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
 }
 
 export interface User {
@@ -50,15 +51,17 @@ export interface ActivityCase {
   startTime: string;
   endTime: string;
   location: string;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   members: string[]; // User IDs
 }
 
 export type PermissionAction = 
+  | 'activity:create'
   | 'activity:view'
   | 'activity:edit'
   | 'activity:delete'
   | 'activity:approve'
+  | 'activity:qr-display'
   | 'activity:check-in'
   | 'activity:report'
   | 'admin:policy_manage'
