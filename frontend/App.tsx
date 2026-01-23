@@ -11,7 +11,7 @@ import { ApprovalCenter } from './pages/ApprovalCenter';
 import { AdminSystem } from './pages/AdminSystem';
 import { AttendanceReport } from './pages/AttendanceReport';
 import { Role, ActivityCase, CaseStatus } from './types';
-import { ShieldCheck, ArrowRight, User as UserIcon, ShieldQuestion, QrCode, Download, MapPin, XCircle } from 'lucide-react';
+import { ShieldCheck, QrCode, Download, MapPin, XCircle } from 'lucide-react';
 
 const MOCK_ACTIVITY: ActivityCase = {
   id: 'C-9021',
@@ -45,6 +45,25 @@ const REJECTED_ACTIVITY: ActivityCase = {
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const { t } = useI18n();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      await login(username, password);
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || 'Login failed. Please try again.';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
@@ -56,21 +75,38 @@ const LoginPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900">{t.branding.appName}</h1>
           <p className="text-slate-500 text-sm mt-1">{t.branding.appSubtitle}</p>
         </div>
-        <div className="space-y-3">
-          {[
-            { role: Role.ADMIN, label: t.roles.policyAdministrator, icon: ShieldCheck, color: 'text-rose-600' },
-            { role: Role.USER, label: t.roles.employeePortal, icon: UserIcon, color: 'text-blue-600' },
-            { role: Role.GUEST, label: t.roles.guestTerminal, icon: ShieldQuestion, color: 'text-slate-600' }
-          ].map(item => (
-            <button key={item.role} onClick={() => login(item.role)} className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all group hover:border-blue-200">
-              <div className="flex items-center space-x-4">
-                <item.icon className={item.color} size={20} />
-                <span className="font-bold text-slate-900">{item.label}</span>
-              </div>
-              <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-transform" />
-            </button>
-          ))}
-        </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Username or Email</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="you@company.com"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          {error && <div className="text-sm text-rose-600 font-semibold">{error}</div>}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center p-4 rounded-xl bg-blue-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-60"
+          >
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
         <div className="mt-8 text-center">
            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{t.branding.securedBy}</p>
         </div>
@@ -124,7 +160,7 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
 };
 
 const MainRouter: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { t } = useI18n();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [selectedCase, setSelectedCase] = useState<ActivityCase | null>(null);
@@ -214,6 +250,16 @@ const MainRouter: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) return <LoginPage />;
+
   return <AppShell activePage={currentPage} onNavigate={handleNavigate}>{renderPage()}</AppShell>;
 };
 
@@ -226,7 +272,14 @@ const App: React.FC = () => (
 );
 
 const AuthConsumer: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
+        Loading...
+      </div>
+    );
+  }
   return user ? <MainRouter /> : <LoginPage />;
 };
 

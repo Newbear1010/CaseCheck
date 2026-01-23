@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.models.user import User, Role
 from app.schemas.user import UserResponse, UserUpdate
-from app.schemas.common import SuccessResponse, PaginatedResponse
+from app.schemas.common import SuccessResponse, PaginatedResponse, PaginationMeta
+from app.api.deps import ActiveUser, AdminUser
 
 router = APIRouter()
 
@@ -18,15 +22,16 @@ router = APIRouter()
     }
 )
 async def get_current_user(
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser
 ):
     """
     Get current user profile
 
     Returns the authenticated user's complete profile including roles
     """
-    # TODO: Implement get current user logic
-    pass
+    return SuccessResponse(
+        data=UserResponse.model_validate(current_user),
+    )
 
 
 @router.put(
@@ -41,15 +46,30 @@ async def get_current_user(
 )
 async def update_current_user(
     user_data: UserUpdate,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update current user profile
 
     Users can update their own profile information (name, phone, department, image)
     """
-    # TODO: Implement update user logic
-    pass
+    if user_data.full_name is not None:
+        current_user.full_name = user_data.full_name
+    if user_data.phone is not None:
+        current_user.phone = user_data.phone
+    if user_data.department is not None:
+        current_user.department = user_data.department
+    if user_data.profile_image_url is not None:
+        current_user.profile_image_url = user_data.profile_image_url
+
+    await db.flush()
+    await db.refresh(current_user)
+
+    return SuccessResponse(
+        data=UserResponse.model_validate(current_user),
+        message="Profile updated",
+    )
 
 
 @router.get(
@@ -67,15 +87,48 @@ async def list_users(
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search by username, email, or name"),
     role: str = Query(None, description="Filter by role"),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     List all users (ADMIN only)
 
     Returns paginated list of users with filtering options
     """
-    # TODO: Implement list users logic
-    pass
+    query = select(User).options(selectinload(User.roles))
+
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            (User.username.ilike(pattern))
+            | (User.email.ilike(pattern))
+            | (User.full_name.ilike(pattern))
+        )
+
+    if role:
+        query = query.join(User.roles).where(Role.name == role)
+
+    total_query = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(total_query)).scalar_one()
+
+    query = query.offset((page - 1) * per_page).limit(per_page)
+    result = await db.execute(query)
+    users = result.scalars().all()
+
+    total_pages = (total + per_page - 1) // per_page if total else 0
+    pagination = PaginationMeta(
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        has_next=page < total_pages,
+        has_prev=page > 1,
+    )
+
+    return PaginatedResponse(
+        data=[UserResponse.model_validate(user) for user in users],
+        pagination=pagination,
+    )
 
 
 @router.get(
@@ -90,12 +143,27 @@ async def list_users(
 )
 async def get_user(
     user_id: str = Path(..., description="User ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get user by ID
 
     Returns user profile information
     """
-    # TODO: Implement get user logic
-    pass
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return SuccessResponse(
+        data=UserResponse.model_validate(user),
+    )
