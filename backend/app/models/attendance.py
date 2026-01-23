@@ -82,7 +82,7 @@ class QRCode(Base, TimestampMixin):
 
     # Metadata
     generated_by_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
-    metadata: Mapped[Optional[str]] = mapped_column(Text)  # JSON field for additional data
+    attendance_metadata: Mapped[Optional[str]] = mapped_column("metadata", Text)  # JSON field for additional data
 
     # Relationships
     activity: Mapped["ActivityCase"] = relationship(

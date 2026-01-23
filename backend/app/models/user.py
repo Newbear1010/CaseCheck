@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
-from sqlalchemy import String, Boolean, Text, ForeignKey, Table, Column, UniqueConstraint
+from sqlalchemy import String, Boolean, Text, ForeignKey, Table, Column, UniqueConstraint, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TimestampMixin
 
@@ -12,7 +12,7 @@ user_roles = Table(
     Base.metadata,
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("role_id", ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    Column("assigned_at", nullable=False, server_default="now()"),
+    Column("assigned_at", DateTime(timezone=True), nullable=False, server_default="now()"),
     Column("assigned_by_id", ForeignKey("users.id", ondelete="SET NULL")),
 )
 
@@ -46,7 +46,9 @@ class User(Base, TimestampMixin):
     roles: Mapped[List["Role"]] = relationship(
         "Role",
         secondary=user_roles,
-        back_populates="users"
+        primaryjoin=lambda: User.id == user_roles.c.user_id,
+        secondaryjoin=lambda: Role.id == user_roles.c.role_id,
+        back_populates="users",
     )
     created_activities: Mapped[List["ActivityCase"]] = relationship(
         "ActivityCase",
@@ -73,7 +75,9 @@ class Role(Base, TimestampMixin):
     users: Mapped[List["User"]] = relationship(
         "User",
         secondary=user_roles,
-        back_populates="roles"
+        primaryjoin=lambda: Role.id == user_roles.c.role_id,
+        secondaryjoin=lambda: User.id == user_roles.c.user_id,
+        back_populates="roles",
     )
     permissions: Mapped[List["Permission"]] = relationship(
         "Permission",

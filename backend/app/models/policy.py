@@ -31,7 +31,7 @@ class PolicyRule(Base, TimestampMixin):
 
     # Metadata
     tags: Mapped[Optional[str]] = mapped_column(Text)  # JSON array of tags
-    metadata: Mapped[Optional[str]] = mapped_column(Text)  # JSON for additional metadata
+    policy_metadata: Mapped[Optional[str]] = mapped_column("metadata", Text)  # JSON for additional metadata
 
     __table_args__ = (
         Index("idx_policy_active", "is_active"),
