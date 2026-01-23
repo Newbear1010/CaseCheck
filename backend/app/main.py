@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.v1 import api_router
+from app.middleware.pep import PEPMiddleware
 from app.schemas.common import HealthCheckResponse
 from datetime import datetime
 
@@ -54,6 +55,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Policy enforcement middleware
+app.add_middleware(PEPMiddleware)
 
 
 # Health check endpoint

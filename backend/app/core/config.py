@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # OPA (Open Policy Agent)
     OPA_URL: str = "http://localhost:8181"
-    OPA_POLICY_PATH: str = "/v1/data/casecheck/authz/allow"
+    OPA_POLICY_PATH: str = "/v1/data/casecheck/authz/response"
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
