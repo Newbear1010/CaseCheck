@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.api.deps import ActiveUser
+from app.services import attendance_service
 from app.schemas.attendance import (
     AttendanceRecordCreate,
     AttendanceRecordResponse,
@@ -28,7 +30,8 @@ router = APIRouter()
 )
 async def register_for_activity(
     registration_data: AttendanceRecordCreate,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Register for activity
@@ -37,8 +40,13 @@ async def register_for_activity(
     - Checks if activity is full (current_participants < max_participants)
     - Creates attendance record with REGISTERED status
     """
-    # TODO: Implement registration logic
-    pass
+    record = await attendance_service.register_for_activity(
+        db=db,
+        activity_id=registration_data.activity_id,
+        user=current_user,
+        notes=registration_data.notes,
+    )
+    return SuccessResponse(data=AttendanceRecordResponse.model_validate(record))
 
 
 @router.post(
@@ -54,7 +62,8 @@ async def register_for_activity(
 )
 async def check_in(
     check_in_data: AttendanceCheckIn,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Check in using QR code
@@ -63,8 +72,13 @@ async def check_in(
     - Updates attendance status to CHECKED_IN
     - Records check-in timestamp and method
     """
-    # TODO: Implement check-in logic
-    pass
+    record = await attendance_service.check_in(
+        db=db,
+        user=current_user,
+        qr_code=check_in_data.qr_code,
+        notes=check_in_data.notes,
+    )
+    return SuccessResponse(data=AttendanceRecordResponse.model_validate(record))
 
 
 @router.post(
@@ -80,7 +94,8 @@ async def check_in(
 )
 async def check_out(
     check_out_data: AttendanceCheckIn,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Check out using QR code
@@ -89,8 +104,13 @@ async def check_out(
     - Updates attendance status to CHECKED_OUT
     - Records check-out timestamp
     """
-    # TODO: Implement check-out logic
-    pass
+    record = await attendance_service.check_out(
+        db=db,
+        user=current_user,
+        qr_code=check_out_data.qr_code,
+        notes=check_out_data.notes,
+    )
+    return SuccessResponse(data=AttendanceRecordResponse.model_validate(record))
 
 
 @router.get(
@@ -105,7 +125,8 @@ async def check_out(
 )
 async def get_activity_attendance(
     activity_id: str = Path(..., description="Activity ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get attendance records for activity
@@ -113,8 +134,8 @@ async def get_activity_attendance(
     Returns all attendance records for the specified activity
     Requires ADMIN role or activity creator
     """
-    # TODO: Implement get attendance logic
-    pass
+    records = await attendance_service.get_attendance_records(db, activity_id)
+    return SuccessResponse(data=[AttendanceRecordResponse.model_validate(item) for item in records])
 
 
 @router.get(
@@ -129,7 +150,8 @@ async def get_activity_attendance(
 )
 async def get_attendance_stats(
     activity_id: str = Path(..., description="Activity ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get attendance statistics
@@ -141,8 +163,8 @@ async def get_attendance_stats(
     - Absent count
     - Attendance rate
     """
-    # TODO: Implement statistics logic
-    pass
+    stats = await attendance_service.get_attendance_stats(db, activity_id)
+    return SuccessResponse(data=AttendanceStatsResponse(**stats))
 
 
 @router.post(
@@ -158,7 +180,8 @@ async def get_attendance_stats(
 )
 async def generate_qr_code(
     qr_data: QRCodeCreate,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Generate QR code for activity
@@ -167,8 +190,16 @@ async def generate_qr_code(
     - QR code has validity period and optional usage limit
     - Supports different types: CHECK_IN, CHECK_OUT, BOTH
     """
-    # TODO: Implement QR code generation logic
-    pass
+    qr = await attendance_service.generate_activity_qr(
+        db=db,
+        activity_id=qr_data.activity_id,
+        user=current_user,
+        code_type=qr_data.code_type,
+        valid_from=qr_data.valid_from,
+        valid_until=qr_data.valid_until,
+        max_uses=qr_data.max_uses,
+    )
+    return SuccessResponse(data=QRCodeResponse.model_validate(qr))
 
 
 @router.get(
@@ -184,12 +215,13 @@ async def generate_qr_code(
 )
 async def validate_qr_code(
     qr_code: str = Path(..., description="QR code string"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Validate QR code
 
     Checks if QR code exists, is active, and within validity period
     """
-    # TODO: Implement QR code validation logic
-    pass
+    qr = await attendance_service.validate_qr(db, qr_code)
+    return SuccessResponse(data=QRCodeResponse.model_validate(qr))
