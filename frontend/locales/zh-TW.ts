@@ -100,6 +100,8 @@ export const zhTW = {
     status: '狀態',
     riskLevel: '風險等級',
     location: '地點',
+    category: '活動類型',
+    maxParticipants: '人數上限',
     startTime: '開始時間',
     endTime: '結束時間',
     creator: '建立者',

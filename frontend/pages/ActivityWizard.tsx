@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useI18n } from '../context/I18nContext';
 import {
   ChevronRight,
@@ -12,6 +12,7 @@ import {
   History
 } from 'lucide-react';
 import { ActivityCase } from '../types';
+import { activityService, ActivityType } from '../services/activityService';
 
 interface WizardProps {
   onComplete: () => void;
@@ -21,12 +22,17 @@ interface WizardProps {
 export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) => {
   const { t, translate } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
+  const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
+  const [activityTypeId, setActivityTypeId] = useState(baseCase?.activityTypeId || '');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: baseCase?.title || '',
     description: baseCase?.description || '',
     startTime: baseCase?.startTime || '',
     endTime: baseCase?.endTime || '',
     location: baseCase?.location || '14F Briefing Room',
+    maxParticipants: 30,
     managers: baseCase?.members || [],
   });
   const [managers, setManagers] = useState<string[]>(formData.managers);
@@ -58,6 +64,46 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
       setFormData(current => ({ ...current, managers: nextManagers }));
       return nextManagers;
     });
+  };
+
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const types = await activityService.listTypes();
+        setActivityTypes(types);
+        if (!activityTypeId && types.length > 0) {
+          setActivityTypeId(types[0].id);
+        }
+      } catch (error: any) {
+        setSubmitError(error?.response?.data?.detail || 'Unable to load activity types.');
+      }
+    };
+    loadTypes();
+  }, []);
+
+  const handleSubmit = async () => {
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      if (!activityTypeId) {
+        throw new Error('Activity type is required.');
+      }
+      await activityService.create({
+        title: formData.title,
+        description: formData.description,
+        activity_type_id: activityTypeId,
+        start_date: formData.startTime,
+        end_date: formData.endTime,
+        location: formData.location,
+        max_participants: formData.maxParticipants,
+      });
+      onComplete();
+    } catch (error: any) {
+      setSubmitError(error?.response?.data?.detail || 'Unable to create activity.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -102,6 +148,20 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
             <div className="space-y-6">
               <h3 className="text-lg font-bold border-b pb-4">{t.wizard.activityDefinition}</h3>
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{t.activity.category || 'Activity Type'}</label>
+                  <select
+                    value={activityTypeId}
+                    onChange={(e) => setActivityTypeId(e.target.value)}
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"
+                  >
+                    {activityTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">{t.wizard.caseTitle}</label>
                   <input
@@ -160,6 +220,16 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
                     <option value="1F Auditorium">1F Auditorium</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{t.activity.maxParticipants || 'Max Participants'}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formData.maxParticipants}
+                    onChange={(e) => setFormData({ ...formData, maxParticipants: Number(e.target.value) })}
+                    className="w-full border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -198,12 +268,16 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
         <div className="p-6 border-t border-slate-100 flex justify-between">
           <button onClick={back} disabled={currentStep === 0} className="px-6 py-2.5 rounded-lg border text-slate-600 disabled:opacity-30 font-bold">{t.common.previous}</button>
           <button
-            onClick={currentStep === STEPS.length - 1 ? onComplete : next}
-            className="px-8 py-2.5 rounded-lg bg-blue-600 text-white shadow-md font-bold"
+            onClick={currentStep === STEPS.length - 1 ? handleSubmit : next}
+            className="px-8 py-2.5 rounded-lg bg-blue-600 text-white shadow-md font-bold disabled:opacity-60"
+            disabled={isSubmitting}
           >
-            {currentStep === STEPS.length - 1 ? t.wizard.submitCase : t.wizard.nextStep}
+            {currentStep === STEPS.length - 1 ? (isSubmitting ? t.common.loading || 'Submitting...' : t.wizard.submitCase) : t.wizard.nextStep}
           </button>
         </div>
+        {submitError && (
+          <div className="px-6 pb-6 text-sm text-rose-600">{submitError}</div>
+        )}
       </div>
     </div>
   );

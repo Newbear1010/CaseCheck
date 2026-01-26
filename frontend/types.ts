@@ -41,12 +41,14 @@ export interface AttendanceRecord {
 
 export interface ActivityCase {
   id: string;
+  caseNumber?: string;
   parentId?: string;
   title: string;
   description: string;
   status: CaseStatus;
   rejectionReason?: string;
   creatorId: string;
+  activityTypeId?: string;
   createdAt: string;
   startTime: string;
   endTime: string;

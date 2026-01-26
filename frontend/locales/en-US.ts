@@ -100,6 +100,8 @@ export const enUS = {
     status: 'Status',
     riskLevel: 'Risk Level',
     location: 'Location',
+    category: 'Activity Type',
+    maxParticipants: 'Max Participants',
     startTime: 'Start Time',
     endTime: 'End Time',
     creator: 'Creator',

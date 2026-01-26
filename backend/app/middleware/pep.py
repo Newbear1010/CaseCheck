@@ -7,6 +7,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.security import decode_token
+from app.core.database import AsyncSessionLocal
+from sqlalchemy import select
+from app.models.activity import ActivityCase
 from app.services.opa_client import opa_client, PolicyInput
 
 
@@ -116,6 +119,8 @@ class PEPMiddleware(BaseHTTPMiddleware):
             return "user:list"
         if path == "/v1/activities" and method == "GET":
             return "activity:list"
+        if path == "/v1/activities/types" and method == "GET":
+            return "activity:list"
 
         base_action = METHOD_ACTION_MAP.get(method, "read")
 
@@ -145,4 +150,21 @@ class PEPMiddleware(BaseHTTPMiddleware):
         return f"{resource_type}:{base_action}"
 
     async def _get_resource_context(self, request: Request) -> dict:
+        path = request.url.path
+        parts = path.strip("/").split("/")
+        if len(parts) >= 3 and parts[0] == "v1" and parts[1] == "activities":
+            activity_id = parts[2]
+            if activity_id != "types":
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(
+                        select(ActivityCase).where(ActivityCase.id == activity_id)
+                    )
+                    activity = result.scalar_one_or_none()
+                    if activity:
+                        return {
+                            "id": activity.id,
+                            "creator_id": activity.creator_id,
+                            "status": getattr(activity.status, "value", activity.status),
+                            "risk_level": getattr(activity.risk_level, "value", activity.risk_level),
+                        }
         return {}

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { I18nProvider, useI18n } from './context/I18nContext';
 import { AppShell } from './components/AppShell';
@@ -11,36 +11,8 @@ import { ApprovalCenter } from './pages/ApprovalCenter';
 import { AdminSystem } from './pages/AdminSystem';
 import { AttendanceReport } from './pages/AttendanceReport';
 import { Role, ActivityCase, CaseStatus } from './types';
+import { activityService } from './services/activityService';
 import { ShieldCheck, QrCode, Download, MapPin, XCircle } from 'lucide-react';
-
-const MOCK_ACTIVITY: ActivityCase = {
-  id: 'C-9021',
-  title: 'Q3 Product Launch Event',
-  description: 'Global launch event for the new enterprise suite involving 200+ partners. This event includes high-level stakeholders and requires strict security check-in protocols for all attendees.',
-  status: CaseStatus.IN_PROGRESS,
-  creatorId: 'user-1',
-  createdAt: '2024-05-01',
-  startTime: '2024-05-20T09:00:00',
-  endTime: '2024-05-20T17:00:00',
-  location: 'Main Auditorium',
-  riskLevel: 'MEDIUM',
-  members: ['user-1', 'user-2', 'user-3']
-};
-
-const REJECTED_ACTIVITY: ActivityCase = {
-  id: 'C-8900',
-  title: 'Internal Hackathon 2024',
-  description: 'Two-day internal development sprint for the R&D team focused on AI innovations.',
-  status: CaseStatus.REJECTED,
-  rejectionReason: 'The venue "Basement Lounge" does not meet current fire safety standards for 50+ people. Please select an approved auditorium.',
-  creatorId: 'user-1',
-  createdAt: '2024-05-10',
-  startTime: '2024-06-01T09:00:00',
-  endTime: '2024-06-02T17:00:00',
-  location: 'Basement Lounge',
-  riskLevel: 'HIGH',
-  members: ['user-1']
-};
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -166,6 +138,8 @@ const MainRouter: React.FC = () => {
   const [selectedCase, setSelectedCase] = useState<ActivityCase | null>(null);
   const [remakeBase, setRemakeBase] = useState<ActivityCase | null>(null);
   const [qrActivity, setQrActivity] = useState<ActivityCase | null>(null);
+  const [activities, setActivities] = useState<ActivityCase[]>([]);
+  const [activityError, setActivityError] = useState('');
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -182,6 +156,19 @@ const MainRouter: React.FC = () => {
   const handleViewCase = (caseItem: ActivityCase) => {
     setSelectedCase(caseItem);
   };
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const { items } = await activityService.list({ page: 1, per_page: 20 });
+        setActivities(items);
+      } catch (error: any) {
+        setActivityError(error?.response?.data?.detail || 'Unable to load activities.');
+      }
+    };
+
+    loadActivities();
+  }, []);
 
   const renderPage = () => {
     if (selectedCase) return <CaseDetail activity={selectedCase} onBack={() => setSelectedCase(null)} onRemake={handleRemake} />;
@@ -207,7 +194,12 @@ const MainRouter: React.FC = () => {
                 <tr><th className="px-6 py-4">{t.activity.status}</th><th className="px-6 py-4">{t.activity.title}</th><th className="px-6 py-4">{t.activity.riskLevel}</th><th className="px-6 py-4"></th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {[MOCK_ACTIVITY, REJECTED_ACTIVITY].map(c => (
+                {activityError && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-4 text-sm text-rose-600">{activityError}</td>
+                  </tr>
+                )}
+                {!activityError && activities.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -218,7 +210,7 @@ const MainRouter: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{c.title}</div>
-                      <div className="text-[10px] text-slate-400 mono">ID: {c.id}</div>
+                      <div className="text-[10px] text-slate-400 mono">ID: {c.caseNumber || c.id}</div>
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500">{t.risk[c.riskLevel]}</td>
                     <td className="px-6 py-4 text-right">

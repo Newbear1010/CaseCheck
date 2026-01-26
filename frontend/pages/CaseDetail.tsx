@@ -86,6 +86,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
 
   const isRejected = activity.status === CaseStatus.REJECTED;
   const isOngoing = activity.status === CaseStatus.IN_PROGRESS;
+  const displayId = activity.caseNumber || activity.id;
 
   return (
     <div className="space-y-6">
@@ -144,7 +145,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
           <div>
             <h3 className="font-bold text-rose-900">{t.activity.caseRejectedReadOnly}</h3>
             <p className="text-rose-700 text-sm mt-1">{t.activity.reason}: {activity.rejectionReason || 'Incomplete risk assessment documentation.'}</p>
-            <p className="text-rose-600/60 text-xs mt-3 italic font-medium">{t.activity.archiveReferenceId}: {activity.id}</p>
+            <p className="text-rose-600/60 text-xs mt-3 italic font-medium">{t.activity.archiveReferenceId}: {displayId}</p>
           </div>
         </div>
       )}
@@ -153,7 +154,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
         <div className="p-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <span className="mono text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded tracking-widest border">#{activity.id}</span>
+              <span className="mono text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded tracking-widest border">#{displayId}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                 activity.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' :
                 activity.status === CaseStatus.IN_PROGRESS ? 'bg-green-100 text-green-700' :

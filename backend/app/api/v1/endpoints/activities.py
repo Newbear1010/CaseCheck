@@ -2,6 +2,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.api.deps import ActiveUser
+from app.services import activity_service
+from app.models.activity import ActivityStatus
 from app.schemas.activity import (
     ActivityCaseCreate,
     ActivityCaseUpdate,
@@ -9,6 +12,7 @@ from app.schemas.activity import (
     ActivityApprovalRequest,
     ActivityRejectionRequest,
     ActivityStatusEnum,
+    ActivityTypeResponse,
 )
 from app.schemas.common import SuccessResponse, PaginatedResponse
 
@@ -29,7 +33,8 @@ router = APIRouter()
 )
 async def create_activity(
     activity_data: ActivityCaseCreate,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Create a new activity case
@@ -39,8 +44,8 @@ async def create_activity(
     - Sets initial status to DRAFT or PENDING_APPROVAL based on risk level
     - Requires authentication and 'activity:create' permission
     """
-    # TODO: Implement activity creation logic
-    pass
+    activity = await activity_service.create_activity(db, current_user, activity_data)
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
 @router.get(
@@ -58,7 +63,8 @@ async def list_activities(
     status: Optional[ActivityStatusEnum] = Query(None, description="Filter by status"),
     creator_id: Optional[str] = Query(None, description="Filter by creator"),
     search: Optional[str] = Query(None, description="Search in title and description"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     List activities with pagination and filtering
@@ -67,8 +73,45 @@ async def list_activities(
     - Returns paginated results with metadata
     - Requires authentication
     """
-    # TODO: Implement activity listing logic
-    pass
+    activities, total = await activity_service.list_activities(
+        db=db,
+        page=page,
+        per_page=per_page,
+        status=ActivityStatus(status) if status else None,
+        creator_id=creator_id,
+        search=search,
+    )
+    total_pages = (total + per_page - 1) // per_page if total else 0
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_prev": page > 1,
+    }
+
+    return PaginatedResponse(
+        data=[ActivityCaseResponse.model_validate(item) for item in activities],
+        pagination=pagination,
+    )
+
+
+@router.get(
+    "/types",
+    response_model=SuccessResponse[list[ActivityTypeResponse]],
+    summary="List activity types",
+    description="Get available activity types",
+    responses={
+        200: {"description": "Activity types retrieved successfully"},
+    }
+)
+async def list_activity_types(
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
+):
+    types = await activity_service.list_activity_types(db)
+    return SuccessResponse(data=[ActivityTypeResponse.model_validate(item) for item in types])
 
 
 @router.get(
@@ -83,15 +126,19 @@ async def list_activities(
 )
 async def get_activity(
     activity_id: str = Path(..., description="Activity ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get activity details by ID
 
     Returns complete activity information including creator, type, and approval status
     """
-    # TODO: Implement get activity logic
-    pass
+    activity = await activity_service.get_activity(db, activity_id)
+    if not activity:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
 @router.put(
@@ -108,7 +155,8 @@ async def get_activity(
 async def update_activity(
     activity_id: str = Path(..., description="Activity ID"),
     activity_data: ActivityCaseUpdate = ...,
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update activity details
@@ -117,8 +165,16 @@ async def update_activity(
     - Cannot update activity in APPROVED or COMPLETED status
     - Requires 'activity:update' permission
     """
-    # TODO: Implement activity update logic
-    pass
+    try:
+        activity = await activity_service.update_activity(db, activity_id, current_user, activity_data)
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PermissionError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
 @router.delete(
@@ -134,7 +190,8 @@ async def update_activity(
 )
 async def delete_activity(
     activity_id: str = Path(..., description="Activity ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Delete (cancel) an activity
@@ -143,8 +200,16 @@ async def delete_activity(
     - Only creator or ADMIN can delete
     - Cannot delete COMPLETED activities
     """
-    # TODO: Implement activity deletion logic
-    pass
+    try:
+        activity = await activity_service.delete_activity(db, activity_id, current_user)
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=str(exc))
+    except PermissionError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    return SuccessResponse(data={"id": activity.id, "status": activity.status})
 
 
 @router.post(
@@ -214,7 +279,8 @@ async def reject_activity(
 )
 async def submit_activity(
     activity_id: str = Path(..., description="Activity ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit activity for approval
@@ -223,8 +289,16 @@ async def submit_activity(
     - Only creator can submit
     - Validates all required fields are complete
     """
-    # TODO: Implement activity submission logic
-    pass
+    try:
+        activity = await activity_service.submit_activity(db, activity_id, current_user)
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PermissionError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
 @router.get(
@@ -239,12 +313,18 @@ async def submit_activity(
 )
 async def get_participants(
     activity_id: str = Path(..., description="Activity ID"),
-    db: AsyncSession = Depends(get_db)
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get activity participants
 
     Returns list of users who registered for this activity
     """
-    # TODO: Implement get participants logic
-    pass
+    try:
+        participants = await activity_service.list_participants(db, activity_id)
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=str(exc))
+    return SuccessResponse(data=participants)
+
