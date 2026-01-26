@@ -19,9 +19,14 @@ allow if attendance.allow
 allow if user.allow
 
 # Collect denial reasons
+activity_reasons := [reason | reason := activity.denial_reasons[_]]
+approval_reasons := [reason | reason := approval.denial_reasons[_]]
+attendance_reasons := [reason | reason := attendance.denial_reasons[_]]
+user_reasons := [reason | reason := user.denial_reasons[_]]
+
 reasons := array.concat(
-    array.concat(array.from_set(activity.denial_reasons), array.from_set(approval.denial_reasons)),
-    array.concat(array.from_set(attendance.denial_reasons), array.from_set(user.denial_reasons))
+    array.concat(activity_reasons, approval_reasons),
+    array.concat(attendance_reasons, user_reasons)
 )
 
 response := {

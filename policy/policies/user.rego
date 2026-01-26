@@ -4,7 +4,6 @@ import future.keywords.if
 import future.keywords.in
 
 default allow := false
-denial_reasons := set()
 
 # READ OWN PROFILE
 allow if {
