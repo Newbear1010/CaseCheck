@@ -128,9 +128,9 @@ async def list_activity_types(
     }
 )
 async def get_activity(
-    activity_id: str = Path(..., description="Activity ID"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
 ):
     """
     Get activity details by ID
@@ -156,10 +156,10 @@ async def get_activity(
     }
 )
 async def update_activity(
-    activity_id: str = Path(..., description="Activity ID"),
-    activity_data: ActivityCaseUpdate = ...,
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
+    activity_data: ActivityCaseUpdate = ...,
 ):
     """
     Update activity details
@@ -192,9 +192,9 @@ async def update_activity(
     }
 )
 async def delete_activity(
-    activity_id: str = Path(..., description="Activity ID"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
 ):
     """
     Delete (cancel) an activity
@@ -227,10 +227,10 @@ async def delete_activity(
     }
 )
 async def approve_activity(
-    activity_id: str = Path(..., description="Activity ID"),
-    approval_data: ActivityApprovalRequest = ...,
     current_user: AdminUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
+    approval_data: ActivityApprovalRequest = ...,
 ):
     """
     Approve activity
@@ -260,10 +260,10 @@ async def approve_activity(
     }
 )
 async def reject_activity(
-    activity_id: str = Path(..., description="Activity ID"),
-    rejection_data: ActivityRejectionRequest = ...,
     current_user: AdminUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
+    rejection_data: ActivityRejectionRequest = ...,
 ):
     """
     Reject activity
@@ -293,9 +293,9 @@ async def reject_activity(
     }
 )
 async def submit_activity(
-    activity_id: str = Path(..., description="Activity ID"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
 ):
     """
     Submit activity for approval
@@ -327,9 +327,9 @@ async def submit_activity(
     }
 )
 async def get_participants(
-    activity_id: str = Path(..., description="Activity ID"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
 ):
     """
     Get activity participants
