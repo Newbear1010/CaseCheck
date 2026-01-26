@@ -45,8 +45,8 @@ async def get_current_user(
     }
 )
 async def update_current_user(
-    user_data: UserUpdate,
     current_user: ActiveUser,
+    user_data: UserUpdate,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -83,12 +83,12 @@ async def update_current_user(
     }
 )
 async def list_users(
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     search: str = Query(None, description="Search by username, email, or name"),
     role: str = Query(None, description="Filter by role"),
-    current_user: AdminUser,
-    db: AsyncSession = Depends(get_db),
 ):
     """
     List all users (ADMIN only)
@@ -142,9 +142,9 @@ async def list_users(
     }
 )
 async def get_user(
-    user_id: str = Path(..., description="User ID"),
     current_user: AdminUser,
     db: AsyncSession = Depends(get_db),
+    user_id: str = Path(..., description="User ID"),
 ):
     """
     Get user by ID

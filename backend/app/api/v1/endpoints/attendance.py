@@ -124,9 +124,9 @@ async def check_out(
     }
 )
 async def get_activity_attendance(
-    activity_id: str = Path(..., description="Activity ID"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
 ):
     """
     Get attendance records for activity
@@ -149,9 +149,9 @@ async def get_activity_attendance(
     }
 )
 async def get_attendance_stats(
-    activity_id: str = Path(..., description="Activity ID"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
 ):
     """
     Get attendance statistics
@@ -179,8 +179,8 @@ async def get_attendance_stats(
     }
 )
 async def generate_qr_code(
-    qr_data: QRCodeCreate,
     current_user: ActiveUser,
+    qr_data: QRCodeCreate,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -214,9 +214,9 @@ async def generate_qr_code(
     }
 )
 async def validate_qr_code(
-    qr_code: str = Path(..., description="QR code string"),
     current_user: ActiveUser,
     db: AsyncSession = Depends(get_db),
+    qr_code: str = Path(..., description="QR code string"),
 ):
     """
     Validate QR code
