@@ -14,6 +14,9 @@ from app.schemas.activity import (
     ActivityStatusEnum,
     ActivityTypeResponse,
 )
+from app.api.deps import AdminUser
+from app.services.approval_service import approve_activity as approve_activity_service
+from app.services.approval_service import reject_activity as reject_activity_service
 from app.schemas.common import SuccessResponse, PaginatedResponse
 
 router = APIRouter()
@@ -226,7 +229,8 @@ async def delete_activity(
 async def approve_activity(
     activity_id: str = Path(..., description="Activity ID"),
     approval_data: ActivityApprovalRequest = ...,
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Approve activity
@@ -235,8 +239,13 @@ async def approve_activity(
     - Enforces Separation of Duties (cannot approve own activity)
     - Records approval in audit log
     """
-    # TODO: Implement activity approval logic
-    pass
+    activity = await approve_activity_service(
+        db=db,
+        activity_id=activity_id,
+        approver_id=current_user.id,
+        comment=approval_data.comment,
+    )
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
 @router.post(
@@ -253,7 +262,8 @@ async def approve_activity(
 async def reject_activity(
     activity_id: str = Path(..., description="Activity ID"),
     rejection_data: ActivityRejectionRequest = ...,
-    db: AsyncSession = Depends(get_db)
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Reject activity
@@ -262,8 +272,13 @@ async def reject_activity(
     - Enforces Separation of Duties
     - Rejection reason is mandatory
     """
-    # TODO: Implement activity rejection logic
-    pass
+    activity = await reject_activity_service(
+        db=db,
+        activity_id=activity_id,
+        rejector_id=current_user.id,
+        reason=rejection_data.reason,
+    )
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
 @router.post(
@@ -327,4 +342,3 @@ async def get_participants(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=str(exc))
     return SuccessResponse(data=participants)
-
