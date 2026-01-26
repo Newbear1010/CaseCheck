@@ -1,14 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Users,
   Clock,
-  CheckCircle,
   AlertTriangle,
   FileText,
-  History,
-  Lock,
   Edit3,
   QrCode,
   Download,
@@ -17,13 +14,13 @@ import {
   RefreshCw,
   XCircle,
   Maximize2,
-  ExternalLink,
   MapPin
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { PermissionWrapper } from '../components/PermissionWrapper';
 import { CaseStatus, ActivityCase } from '../types';
 import { CheckInModule } from './CheckInModule';
+import { attendanceService, AttendanceRecord, AttendanceStats, QRCodeResponse } from '../services/attendanceService';
 
 interface CaseDetailProps {
   activity: ActivityCase;
@@ -33,6 +30,36 @@ interface CaseDetailProps {
 
 const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> = ({ activity, onClose }) => {
   const { t } = useI18n();
+  const [qrCode, setQrCode] = useState<QRCodeResponse | null>(null);
+  const [qrError, setQrError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+    const generateQr = async () => {
+      try {
+        const now = new Date();
+        const validFrom = now.toISOString();
+        const validUntil = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+        const result = await attendanceService.generateQR(activity.id, 'CHECK_IN', validFrom, validUntil);
+        if (isActive) {
+          setQrCode(result);
+        }
+      } catch (error: any) {
+        if (isActive) {
+          setQrError(error?.response?.data?.message || t.attendance.qrGenerationFailed);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+    generateQr();
+    return () => {
+      isActive = false;
+    };
+  }, [activity.id, t.attendance.qrGenerationFailed]);
 
   return (
   <div className="fixed inset-0 z-[110] bg-slate-950/90 flex items-center justify-center p-6 backdrop-blur-sm">
@@ -65,6 +92,13 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
           <MapPin size={12} />
           <span>{activity.location}</span>
         </div>
+        {isLoading && <div className="text-xs text-slate-400">{t.attendance.generatingQr}</div>}
+        {qrError && <div className="text-xs text-rose-500">{qrError}</div>}
+        {qrCode && (
+          <div className="bg-slate-100 text-slate-700 text-[10px] font-mono px-3 py-2 rounded-lg break-all border border-slate-200">
+            {qrCode.code}
+          </div>
+        )}
       </div>
 
       <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-slate-800 transition-colors">
@@ -81,12 +115,59 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
   const [activeTab, setActiveTab] = useState('overview');
   const [showScanner, setShowScanner] = useState(false);
   const [showQRDisplay, setShowQRDisplay] = useState(false);
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceError, setAttendanceError] = useState('');
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceSearch, setAttendanceSearch] = useState('');
 
-  if (showScanner) return <CheckInModule onDismiss={() => setShowScanner(false)} />;
+  useEffect(() => {
+    if (activeTab !== 'attendance') return;
+    let isActive = true;
+    const loadAttendance = async () => {
+      setAttendanceLoading(true);
+      setAttendanceError('');
+      try {
+        const [stats, records] = await Promise.all([
+          attendanceService.getStats(activity.id),
+          attendanceService.getRecords(activity.id),
+        ]);
+        if (isActive) {
+          setAttendanceStats(stats);
+          setAttendanceRecords(records);
+        }
+      } catch (error: any) {
+        if (isActive) {
+          setAttendanceError(error?.response?.data?.message || t.attendance.loadAttendanceFailed);
+        }
+      } finally {
+        if (isActive) {
+          setAttendanceLoading(false);
+        }
+      }
+    };
+    loadAttendance();
+    return () => {
+      isActive = false;
+    };
+  }, [activeTab, activity.id, t.attendance.loadAttendanceFailed]);
+
+  if (showScanner) return <CheckInModule activityId={activity.id} onDismiss={() => setShowScanner(false)} />;
 
   const isRejected = activity.status === CaseStatus.REJECTED;
   const isOngoing = activity.status === CaseStatus.IN_PROGRESS;
   const displayId = activity.caseNumber || activity.id;
+  const filteredAttendanceRecords = attendanceRecords.filter(record =>
+    record.user_id.toLowerCase().includes(attendanceSearch.toLowerCase())
+  );
+
+  const attendanceStatusStyles: Record<string, string> = {
+    REGISTERED: 'bg-amber-50 text-amber-700',
+    CHECKED_IN: 'bg-green-50 text-green-700',
+    CHECKED_OUT: 'bg-slate-100 text-slate-600',
+    ABSENT: 'bg-rose-50 text-rose-700',
+    CANCELLED: 'bg-slate-100 text-slate-500',
+  };
 
   return (
     <div className="space-y-6">
@@ -262,17 +343,26 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
                 <div className="flex items-center space-x-4">
                   <div className="bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100">
                     <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.present}</div>
-                    <div className="text-xl font-bold">12 <span className="text-xs opacity-50 font-normal">/ 15</span></div>
+                    <div className="text-xl font-bold">
+                      {attendanceStats?.checked_in ?? 0}{' '}
+                      <span className="text-xs opacity-50 font-normal">/ {attendanceStats?.total_registered ?? 0}</span>
+                    </div>
                   </div>
                   <div className="bg-slate-50 text-slate-600 px-4 py-2 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.visitors}</div>
-                    <div className="text-xl font-bold">3</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.checkedOut}</div>
+                    <div className="text-xl font-bold">{attendanceStats?.checked_out ?? 0}</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" placeholder={t.attendance.searchAttendee} className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs w-48" />
+                    <input
+                      type="text"
+                      value={attendanceSearch}
+                      onChange={(event) => setAttendanceSearch(event.target.value)}
+                      placeholder={t.attendance.searchAttendee}
+                      className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs w-48"
+                    />
                   </div>
                 </div>
               </div>
@@ -288,22 +378,37 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-sm">
-                       {[
-                         { name: 'Alex Admin', role: 'Staff', time: '09:05 AM', type: 'FaceID' },
-                         { name: 'Jane User', role: 'Staff', time: '09:12 AM', type: 'QR Scan' },
-                         { name: 'Visitor: John Doe', role: 'External', time: '09:45 AM', type: 'Form' },
-                       ].map((item, idx) => (
-                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-bold text-slate-900">{item.name}</td>
-                            <td className="px-6 py-4">
-                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.role === 'Staff' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-                                  {item.role}
-                               </span>
-                            </td>
-                            <td className="px-6 py-4 text-slate-500">{item.time}</td>
-                            <td className="px-6 py-4 text-xs text-slate-400 italic">{item.type}</td>
+                       {attendanceLoading && (
+                         <tr>
+                           <td colSpan={4} className="px-6 py-6 text-center text-xs text-slate-400">{t.attendance.loadingAttendance}</td>
                          </tr>
-                       ))}
+                       )}
+                       {!attendanceLoading && attendanceError && (
+                         <tr>
+                           <td colSpan={4} className="px-6 py-6 text-center text-xs text-rose-500">{attendanceError}</td>
+                         </tr>
+                       )}
+                       {!attendanceLoading && !attendanceError && filteredAttendanceRecords.length === 0 && (
+                         <tr>
+                           <td colSpan={4} className="px-6 py-6 text-center text-xs text-slate-400">{t.attendance.noAttendanceRecords}</td>
+                         </tr>
+                       )}
+                       {!attendanceLoading && !attendanceError && filteredAttendanceRecords.map((record) => {
+                         const timeValue = record.checked_in_at || record.registered_at;
+                         const timeLabel = timeValue ? new Date(timeValue).toLocaleString() : '-';
+                         return (
+                           <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 font-bold text-slate-900">{record.user_id}</td>
+                              <td className="px-6 py-4">
+                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${attendanceStatusStyles[record.status] || 'bg-slate-100 text-slate-500'}`}>
+                                    {record.status}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-slate-500">{timeLabel}</td>
+                              <td className="px-6 py-4 text-xs text-slate-400 italic">{record.check_in_method || '-'}</td>
+                           </tr>
+                         );
+                       })}
                     </tbody>
                  </table>
               </div>

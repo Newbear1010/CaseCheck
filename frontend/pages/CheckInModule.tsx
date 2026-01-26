@@ -1,12 +1,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../context/I18nContext';
-import { Camera, X, CheckCircle, UserCheck, ShieldAlert, RefreshCw, UserPlus, ArrowRight } from 'lucide-react';
+import { Camera, X, CheckCircle, ShieldAlert, UserPlus, ArrowRight } from 'lucide-react';
+import { attendanceService } from '../services/attendanceService';
 
-export const CheckInModule: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => {
+export const CheckInModule: React.FC<{ activityId: string; onDismiss: () => void }> = ({ activityId, onDismiss }) => {
   const { t } = useI18n();
   const [mode, setMode] = useState<'scan' | 'visitor'>('scan');
   const [result, setResult] = useState<null | 'success' | 'error'>(null);
+  const [qrCode, setQrCode] = useState('');
+  const [notes, setNotes] = useState('');
+  const [scanAction, setScanAction] = useState<'check-in' | 'check-out'>('check-in');
+  const [fullName, setFullName] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -25,8 +34,57 @@ export const CheckInModule: React.FC<{ onDismiss: () => void }> = ({ onDismiss }
     }
   }, [mode]);
 
-  const simulateScan = () => {
-    setTimeout(() => setResult(Math.random() > 0.2 ? 'success' : 'error'), 800);
+  const handleScan = async () => {
+    if (!qrCode.trim()) {
+      setResult('error');
+      setErrorMessage(t.attendance.qrCodeRequired);
+      return;
+    }
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    try {
+      if (scanAction === 'check-in') {
+        await attendanceService.checkIn(qrCode.trim(), notes.trim() || undefined);
+        setSuccessMessage(t.attendance.checkInSuccess);
+      } else {
+        await attendanceService.checkOut(qrCode.trim(), notes.trim() || undefined);
+        setSuccessMessage(t.attendance.checkOutSuccess);
+      }
+      setResult('success');
+    } catch (error: any) {
+      setResult('error');
+      setErrorMessage(error?.response?.data?.message || t.attendance.scanFailed);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVisitorRegistration = async () => {
+    if (!fullName.trim()) {
+      setResult('error');
+      setErrorMessage(t.attendance.fullNameRequired);
+      return;
+    }
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    const visitorNotes = [
+      `Visitor: ${fullName.trim()}`,
+      organization.trim() ? `Org: ${organization.trim()}` : null,
+      notes.trim() ? `Notes: ${notes.trim()}` : null,
+    ].filter(Boolean).join(' | ');
+    try {
+      await attendanceService.register(activityId, visitorNotes);
+      setSuccessMessage(t.attendance.registrationSuccess);
+      setResult('success');
+      setMode('scan');
+    } catch (error: any) {
+      setResult('error');
+      setErrorMessage(error?.response?.data?.message || t.attendance.registrationFailed);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -54,15 +112,54 @@ export const CheckInModule: React.FC<{ onDismiss: () => void }> = ({ onDismiss }
                     {result === 'success' ? <CheckCircle size={48} /> : <ShieldAlert size={48} />}
                   </div>
                   <h3 className="text-white font-bold text-lg">{result === 'success' ? t.attendance.verifiedSuccessfully : t.attendance.unrecognizedIdentity}</h3>
+                  {(successMessage || errorMessage) && (
+                    <p className="text-slate-300 text-sm mt-2 text-center">{successMessage || errorMessage}</p>
+                  )}
                   <button onClick={() => setResult(null)} className="mt-6 text-blue-400 text-sm font-bold uppercase tracking-widest">{t.attendance.retryScan}</button>
                 </div>
               )}
             </div>
 
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+                <span className={`${scanAction === 'check-in' ? 'text-blue-400' : 'text-slate-500'} cursor-pointer`} onClick={() => setScanAction('check-in')}>
+                  {t.attendance.checkIn}
+                </span>
+                <span>/</span>
+                <span className={`${scanAction === 'check-out' ? 'text-blue-400' : 'text-slate-500'} cursor-pointer`} onClick={() => setScanAction('check-out')}>
+                  {t.attendance.checkOut}
+                </span>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.attendance.qrCodeLabel}</label>
+                <input
+                  type="text"
+                  value={qrCode}
+                  onChange={(event) => setQrCode(event.target.value)}
+                  className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder={t.attendance.qrCodePlaceholder}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.attendance.notes}</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder={t.attendance.notesPlaceholder}
+                />
+              </div>
+            </div>
+
             <div className="flex flex-col space-y-3">
-              <button onClick={simulateScan} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center space-x-2">
+              <button
+                onClick={handleScan}
+                disabled={isSubmitting}
+                className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold flex items-center justify-center space-x-2 disabled:opacity-70"
+              >
                 <Camera size={20} />
-                <span>{t.attendance.simulateRecognition}</span>
+                <span>{isSubmitting ? t.attendance.scanning : t.attendance.submitScan}</span>
               </button>
               <button onClick={() => setMode('visitor')} className="w-full py-4 bg-slate-800 text-slate-300 rounded-xl font-bold flex items-center justify-center space-x-2 border border-white/5">
                 <UserPlus size={20} />
@@ -80,22 +177,50 @@ export const CheckInModule: React.FC<{ onDismiss: () => void }> = ({ onDismiss }
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.attendance.fullName}</label>
-                <input type="text" className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500" placeholder={t.attendance.fullNamePlaceholder} />
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder={t.attendance.fullNamePlaceholder}
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.attendance.organization}</label>
-                <input type="text" className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500" placeholder={t.attendance.organizationPlaceholder} />
+                <input
+                  type="text"
+                  value={organization}
+                  onChange={(event) => setOrganization(event.target.value)}
+                  className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder={t.attendance.organizationPlaceholder}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t.attendance.notes}</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  className="w-full bg-slate-800 border-none rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+                  placeholder={t.attendance.notesPlaceholder}
+                />
               </div>
             </div>
 
             <div className="pt-4 space-y-3">
               <button
-                onClick={() => {setResult('success'); setMode('scan');}}
-                className="w-full py-4 bg-green-600 text-white rounded-xl font-bold flex items-center justify-center space-x-2"
+                onClick={handleVisitorRegistration}
+                disabled={isSubmitting}
+                className="w-full py-4 bg-green-600 text-white rounded-xl font-bold flex items-center justify-center space-x-2 disabled:opacity-70"
               >
                 <span>{t.attendance.completeRegistration}</span>
                 <ArrowRight size={20} />
               </button>
+              {(successMessage || errorMessage) && (
+                <p className={`text-center text-sm ${errorMessage ? 'text-rose-400' : 'text-green-400'}`}>
+                  {successMessage || errorMessage}
+                </p>
+              )}
               <button onClick={() => setMode('scan')} className="w-full text-slate-500 text-sm font-bold">{t.attendance.backToScanner}</button>
             </div>
           </div>
