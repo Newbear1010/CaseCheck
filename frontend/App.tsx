@@ -12,6 +12,7 @@ import { AdminSystem } from './pages/AdminSystem';
 import { AttendanceReport } from './pages/AttendanceReport';
 import { Role, ActivityCase, CaseStatus } from './types';
 import { activityService } from './services/activityService';
+import authService from './services/authService';
 import { ShieldCheck, QrCode, Download, MapPin, XCircle } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
@@ -19,18 +20,39 @@ const LoginPage: React.FC = () => {
   const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [department, setDepartment] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    setSuccess('');
     setIsSubmitting(true);
 
     try {
-      await login(username, password);
+      if (isRegistering) {
+        await authService.register({
+          username,
+          email,
+          full_name: fullName,
+          password,
+          phone: phone || undefined,
+          department: department || undefined,
+        });
+        setSuccess(t.auth.registrationSuccess);
+        setIsRegistering(false);
+        setPassword('');
+      } else {
+        await login(username, password);
+      }
     } catch (err: any) {
-      const message = err?.response?.data?.detail || 'Login failed. Please try again.';
+      const message = err?.response?.data?.detail || t.auth.authFailed;
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -49,38 +71,103 @@ const LoginPage: React.FC = () => {
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Username or Email</label>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+              {isRegistering ? t.auth.username : t.auth.usernameOrEmail}
+            </label>
             <input
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@company.com"
+              placeholder={isRegistering ? t.auth.usernamePlaceholder : t.auth.emailPlaceholder}
               required
             />
           </div>
+          {isRegistering && (
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{t.auth.email}</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={t.auth.emailPlaceholder}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{t.auth.fullName}</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={t.auth.fullNamePlaceholder}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{t.auth.phone}</label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={t.auth.phonePlaceholder}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{t.auth.department}</label>
+                  <input
+                    type="text"
+                    value={department}
+                    onChange={(event) => setDepartment(event.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder={t.auth.departmentPlaceholder}
+                  />
+                </div>
+              </div>
+            </>
+          )}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Password</label>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{t.auth.password}</label>
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
+              placeholder={t.auth.passwordPlaceholder}
               required
             />
+            {isRegistering && (
+              <p className="text-[11px] text-slate-400">{t.auth.passwordHint}</p>
+            )}
           </div>
           {error && <div className="text-sm text-rose-600 font-semibold">{error}</div>}
+          {success && <div className="text-sm text-emerald-600 font-semibold">{success}</div>}
           <button
             type="submit"
             disabled={isSubmitting}
             className="w-full flex items-center justify-center p-4 rounded-xl bg-blue-600 text-white font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-60"
           >
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
+            {isSubmitting ? t.auth.submitting : (isRegistering ? t.auth.createAccount : t.auth.signIn)}
           </button>
         </form>
         <div className="mt-8 text-center">
-           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{t.branding.securedBy}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering((prev) => !prev);
+              setError('');
+              setSuccess('');
+            }}
+            className="text-xs font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700"
+          >
+            {isRegistering ? t.auth.haveAccount : t.auth.needAccount}
+          </button>
+          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{t.branding.securedBy}</p>
         </div>
       </div>
     </div>
