@@ -61,13 +61,13 @@ async def create_activity(
     }
 )
 async def list_activities(
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     status: Optional[ActivityStatusEnum] = Query(None, description="Filter by status"),
     creator_id: Optional[str] = Query(None, description="Filter by creator"),
     search: Optional[str] = Query(None, description="Search in title and description"),
-    current_user: ActiveUser,
-    db: AsyncSession = Depends(get_db),
 ):
     """
     List activities with pagination and filtering
