@@ -127,7 +127,13 @@ async def register(
     user.roles.append(role)
     db.add(user)
     await db.flush()
-    await db.refresh(user)
+
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user.id)
+    )
+    user = result.scalar_one()
 
     return SuccessResponse(
         data=UserResponse.model_validate(user),
