@@ -245,6 +245,7 @@ async def approve_activity(
         approver_id=current_user.id,
         comment=approval_data.comment,
     )
+    activity = await activity_service.get_activity(db, activity.id)
     return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
@@ -278,6 +279,7 @@ async def reject_activity(
         rejector_id=current_user.id,
         reason=rejection_data.reason,
     )
+    activity = await activity_service.get_activity(db, activity.id)
     return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
