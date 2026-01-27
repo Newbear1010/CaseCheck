@@ -25,6 +25,7 @@ PUBLIC_ROUTES = [
     "/v1/auth/login",
     "/v1/auth/register",
     "/v1/auth/refresh",
+    "/v1/auth/logout",
     "/health",
     "/docs",
     "/redoc",

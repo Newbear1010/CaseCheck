@@ -89,7 +89,11 @@ async def seed_activity_types(db: AsyncSession) -> None:
 
 async def seed_admin_user(db: AsyncSession) -> None:
     existing = await db.execute(select(User).where(User.username == "admin"))
-    if existing.scalar_one_or_none():
+    existing_user = existing.scalar_one_or_none()
+    if existing_user:
+        # Ensure seeded admin has a non-reserved email domain for validation
+        if existing_user.email.endswith(".local") or existing_user.email.endswith(".test"):
+            existing_user.email = "admin@casecheck.example.com"
         return
 
     role_result = await db.execute(select(Role).where(Role.name == "ADMIN"))
@@ -99,7 +103,7 @@ async def seed_admin_user(db: AsyncSession) -> None:
 
     admin = User(
         username="admin",
-        email="admin@casecheck.local",
+        email="admin@casecheck.example.com",
         password_hash=get_password_hash("Admin123!"),
         full_name="System Administrator",
         is_active=True,

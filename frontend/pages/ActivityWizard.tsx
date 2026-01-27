@@ -89,18 +89,46 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
       if (!activityTypeId) {
         throw new Error('Activity type is required.');
       }
+      if (!formData.title || formData.title.trim().length < 5) {
+        throw new Error('Title must be at least 5 characters.');
+      }
+      if (!formData.description || formData.description.trim().length < 10) {
+        throw new Error('Description must be at least 10 characters.');
+      }
+      if (!formData.startTime || !formData.endTime) {
+        throw new Error('Start and end time are required.');
+      }
+      const startDate = new Date(formData.startTime);
+      const endDate = new Date(formData.endTime);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        throw new Error('Invalid date format.');
+      }
+      if (endDate <= startDate) {
+        throw new Error('End time must be after start time.');
+      }
       await activityService.create({
         title: formData.title,
         description: formData.description,
         activity_type_id: activityTypeId,
-        start_date: formData.startTime,
-        end_date: formData.endTime,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
         location: formData.location,
         max_participants: formData.maxParticipants,
       });
       onComplete();
     } catch (error: any) {
-      setSubmitError(error?.response?.data?.detail || 'Unable to create activity.');
+      const detail = error?.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        const message = detail
+          .map((item) => {
+            const path = Array.isArray(item.loc) ? item.loc.slice(1).join('.') : 'field';
+            return `${path}: ${item.msg}`;
+          })
+          .join(' | ');
+        setSubmitError(message || 'Unable to create activity.');
+      } else {
+        setSubmitError(detail || error?.message || 'Unable to create activity.');
+      }
     } finally {
       setIsSubmitting(false);
     }
