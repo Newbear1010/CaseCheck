@@ -50,6 +50,9 @@ class OPAClient:
                 response.raise_for_status()
                 result = response.json().get("result", {})
 
+            if isinstance(result, bool):
+                return PolicyDecision(allow=result, reasons=[])
+
             return PolicyDecision(
                 allow=result.get("allow", False),
                 reasons=result.get("reasons", []),

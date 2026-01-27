@@ -46,6 +46,8 @@ class PEPMiddleware(BaseHTTPMiddleware):
         self.skip_paths = skip_paths or PUBLIC_ROUTES
 
     async def dispatch(self, request: Request, call_next: Callable):
+        if request.method == "OPTIONS":
+            return await call_next(request)
         if self._should_skip(request.url.path):
             return await call_next(request)
 
