@@ -318,6 +318,41 @@ async def submit_activity(
     return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
 
 
+@router.post(
+    "/{activity_id}/start",
+    response_model=SuccessResponse[ActivityCaseResponse],
+    summary="Start activity",
+    description="Move an approved activity to in-progress",
+    responses={
+        200: {"description": "Activity started successfully"},
+        400: {"description": "Activity not in APPROVED status"},
+        403: {"description": "Not authorized to start this activity"},
+        404: {"description": "Activity not found"},
+    }
+)
+async def start_activity(
+    current_user: ActiveUser,
+    db: AsyncSession = Depends(get_db),
+    activity_id: str = Path(..., description="Activity ID"),
+):
+    """
+    Start activity
+
+    - Changes status from APPROVED to IN_PROGRESS
+    - Creator or ADMIN can start
+    """
+    try:
+        activity = await activity_service.start_activity(db, activity_id, current_user)
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(exc))
+    except PermissionError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    return SuccessResponse(data=ActivityCaseResponse.model_validate(activity))
+
+
 @router.get(
     "/{activity_id}/participants",
     response_model=SuccessResponse[list],

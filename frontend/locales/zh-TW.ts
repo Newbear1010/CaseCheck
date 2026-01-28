@@ -166,6 +166,9 @@ export const zhTW = {
     internal: '內部',
     final: '最終',
     addParticipant: '新增參與者',
+    startActivity: '開始活動',
+    starting: '啟動中...',
+    startFailed: '無法開始活動。',
   },
 
   // Activity Wizard
@@ -185,6 +188,7 @@ export const zhTW = {
     analysisResult: '分析結果',
     runAnalysisPrompt: '執行 AI 分析以查看政策合規建議。',
     submitCase: '提交案件',
+    submitForApproval: '提交審批',
     nextStep: '下一步',
     standardFieldsPlaceholder: '{step} 的企業標準欄位將在此處顯示。',
   },
@@ -255,6 +259,7 @@ export const zhTW = {
     scanFailed: '掃描失敗，請再試一次。',
     checkInSuccess: '簽到已成功記錄。',
     checkOutSuccess: '簽退已成功記錄。',
+    checkInPageHint: '掃描活動 QR Code 開啟此頁並完成簽到。',
     visitorSignIn: '訪客簽到',
     visitorSignInDesc: '請提供您的詳細資料以記錄活動',
     fullName: '全名',

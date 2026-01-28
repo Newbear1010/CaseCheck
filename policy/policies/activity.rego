@@ -88,6 +88,30 @@ denial_reasons["Only DRAFT activities can be submitted"] if {
     input.resource.status != "DRAFT"
 }
 
+# START
+allow if {
+    input.action == "activity:start"
+    input.subject.role == "ADMIN"
+    input.resource.status == "APPROVED"
+}
+
+allow if {
+    input.action == "activity:start"
+    input.subject.id == input.resource.creator_id
+    input.resource.status == "APPROVED"
+}
+
+denial_reasons["Only the creator or ADMIN can start this activity"] if {
+    input.action == "activity:start"
+    input.subject.role != "ADMIN"
+    input.subject.id != input.resource.creator_id
+}
+
+denial_reasons["Only APPROVED activities can be started"] if {
+    input.action == "activity:start"
+    input.resource.status != "APPROVED"
+}
+
 # LIST
 allow if {
     input.action == "activity:list"

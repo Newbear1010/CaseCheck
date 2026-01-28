@@ -26,6 +26,7 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
   const [activityTypeId, setActivityTypeId] = useState(baseCase?.activityTypeId || '');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitForApproval, setSubmitForApproval] = useState(true);
   const [formData, setFormData] = useState({
     title: baseCase?.title || '',
     description: baseCase?.description || '',
@@ -106,7 +107,7 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
       if (endDate <= startDate) {
         throw new Error('End time must be after start time.');
       }
-      await activityService.create({
+      const created = await activityService.create({
         title: formData.title,
         description: formData.description,
         activity_type_id: activityTypeId,
@@ -115,6 +116,9 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
         location: formData.location,
         max_participants: formData.maxParticipants,
       });
+      if (submitForApproval) {
+        await activityService.submit(created.id);
+      }
       onComplete();
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
@@ -295,13 +299,26 @@ export const ActivityWizard: React.FC<WizardProps> = ({ onComplete, baseCase }) 
 
         <div className="p-6 border-t border-slate-100 flex justify-between">
           <button onClick={back} disabled={currentStep === 0} className="px-6 py-2.5 rounded-lg border text-slate-600 disabled:opacity-30 font-bold">{t.common.previous}</button>
-          <button
-            onClick={currentStep === STEPS.length - 1 ? handleSubmit : next}
-            className="px-8 py-2.5 rounded-lg bg-blue-600 text-white shadow-md font-bold disabled:opacity-60"
-            disabled={isSubmitting}
-          >
-            {currentStep === STEPS.length - 1 ? (isSubmitting ? t.common.loading || 'Submitting...' : t.wizard.submitCase) : t.wizard.nextStep}
-          </button>
+          <div className="flex items-center space-x-4">
+            {currentStep === STEPS.length - 1 && (
+              <label className="flex items-center space-x-2 text-xs text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={submitForApproval}
+                  onChange={(event) => setSubmitForApproval(event.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-slate-300 rounded"
+                />
+                <span>{t.wizard.submitForApproval}</span>
+              </label>
+            )}
+            <button
+              onClick={currentStep === STEPS.length - 1 ? handleSubmit : next}
+              className="px-8 py-2.5 rounded-lg bg-blue-600 text-white shadow-md font-bold disabled:opacity-60"
+              disabled={isSubmitting}
+            >
+              {currentStep === STEPS.length - 1 ? (isSubmitting ? t.common.loading || 'Submitting...' : t.wizard.submitCase) : t.wizard.nextStep}
+            </button>
+          </div>
         </div>
         {submitError && (
           <div className="px-6 pb-6 text-sm text-rose-600">{submitError}</div>

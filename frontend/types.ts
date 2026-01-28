@@ -63,6 +63,7 @@ export type PermissionAction =
   | 'activity:edit'
   | 'activity:delete'
   | 'activity:approve'
+  | 'activity:start'
   | 'activity:qr-display'
   | 'activity:check-in'
   | 'activity:report'

@@ -36,7 +36,7 @@ class AttendanceRecord(Base, TimestampMixin):
     checked_out_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     # QR code tracking
-    qr_code_used: Mapped[Optional[str]] = mapped_column(String(100))
+    qr_code_used: Mapped[Optional[str]] = mapped_column(Text)
     check_in_method: Mapped[Optional[str]] = mapped_column(String(20))  # 'QR', 'MANUAL', 'AUTO'
 
     # Additional info
@@ -66,7 +66,7 @@ class QRCode(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     activity_id: Mapped[str] = mapped_column(ForeignKey("activity_cases.id", ondelete="CASCADE"), nullable=False, index=True)
-    code: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    code: Mapped[str] = mapped_column(Text, unique=True, nullable=False, index=True)
 
     # Validity period
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

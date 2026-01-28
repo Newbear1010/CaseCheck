@@ -135,6 +135,8 @@ class PEPMiddleware(BaseHTTPMiddleware):
 
         if "/submit" in path:
             return f"{resource_type}:submit"
+        if "/start" in path:
+            return f"{resource_type}:start"
         if "/approve" in path:
             return f"{resource_type}:approve"
         if "/reject" in path:

@@ -166,6 +166,9 @@ export const enUS = {
     internal: 'Internal',
     final: 'Final',
     addParticipant: 'Add Participant',
+    startActivity: 'Start Activity',
+    starting: 'Starting...',
+    startFailed: 'Unable to start activity.',
   },
 
   // Activity Wizard
@@ -185,6 +188,7 @@ export const enUS = {
     analysisResult: 'Analysis Result',
     runAnalysisPrompt: 'Run AI Analysis to see policy compliance suggestions.',
     submitCase: 'Submit Case',
+    submitForApproval: 'Submit for approval',
     nextStep: 'Next Step',
     standardFieldsPlaceholder: 'Standard enterprise fields for {step} go here.',
   },
@@ -255,6 +259,7 @@ export const enUS = {
     scanFailed: 'Scan failed. Please try again.',
     checkInSuccess: 'Check-in recorded successfully.',
     checkOutSuccess: 'Check-out recorded successfully.',
+    checkInPageHint: 'Open this page by scanning the activity QR code.',
     visitorSignIn: 'Visitor Sign-in',
     visitorSignInDesc: 'Please provide your details for activity record',
     fullName: 'Full Name',

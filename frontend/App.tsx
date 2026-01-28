@@ -10,6 +10,7 @@ import { CaseDetail } from './pages/CaseDetail';
 import { ApprovalCenter } from './pages/ApprovalCenter';
 import { AdminSystem } from './pages/AdminSystem';
 import { AttendanceReport } from './pages/AttendanceReport';
+import { CheckInPage } from './pages/CheckInPage';
 import { Role, ActivityCase, CaseStatus } from './types';
 import { activityService } from './services/activityService';
 import authService from './services/authService';
@@ -258,6 +259,9 @@ const MainRouter: React.FC = () => {
   }, []);
 
   const renderPage = () => {
+    if (window.location.pathname === '/check-in') {
+      return <CheckInPage />;
+    }
     if (selectedCase) return <CaseDetail activity={selectedCase} onBack={() => setSelectedCase(null)} onRemake={handleRemake} />;
 
     switch (currentPage) {
@@ -278,12 +282,19 @@ const MainRouter: React.FC = () => {
           <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-left">
               <thead className="bg-slate-50 border-b border-slate-100 font-bold text-slate-400 text-[10px] uppercase tracking-widest">
-                <tr><th className="px-6 py-4">{t.activity.status}</th><th className="px-6 py-4">{t.activity.title}</th><th className="px-6 py-4">{t.activity.riskLevel}</th><th className="px-6 py-4"></th></tr>
+                <tr>
+                  <th className="px-6 py-4">{t.activity.status}</th>
+                  <th className="px-6 py-4">{t.activity.title}</th>
+                  <th className="px-6 py-4">{t.activity.startTime}</th>
+                  <th className="px-6 py-4">{t.activity.endTime}</th>
+                  <th className="px-6 py-4">{t.activity.riskLevel}</th>
+                  <th className="px-6 py-4"></th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {activityError && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-4 text-sm text-rose-600">{activityError}</td>
+                    <td colSpan={6} className="px-6 py-4 text-sm text-rose-600">{activityError}</td>
                   </tr>
                 )}
                 {!activityError && activities.map(c => (
@@ -298,6 +309,12 @@ const MainRouter: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-900">{c.title}</div>
                       <div className="text-[10px] text-slate-400 mono">ID: {c.caseNumber || c.id}</div>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-500">
+                      {c.startTime ? new Date(c.startTime).toLocaleString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-500">
+                      {c.endTime ? new Date(c.endTime).toLocaleString() : '-'}
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500">{t.risk[c.riskLevel]}</td>
                     <td className="px-6 py-4 text-right">

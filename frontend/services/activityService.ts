@@ -134,6 +134,11 @@ export const activityService = {
     return mapActivity(response.data.data);
   },
 
+  async start(id: string): Promise<ActivityCase> {
+    const response = await apiClient.post<SuccessResponse<ApiActivity>>(`/activities/${id}/start`);
+    return mapActivity(response.data.data);
+  },
+
   async listTypes(): Promise<ActivityType[]> {
     const response = await apiClient.get<SuccessResponse<ActivityType[]>>('/activities/types');
     return response.data.data;

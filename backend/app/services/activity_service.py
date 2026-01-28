@@ -193,6 +193,23 @@ async def submit_activity(db: AsyncSession, activity_id: str, user: User) -> Act
     return await get_activity(db, activity.id)
 
 
+async def start_activity(db: AsyncSession, activity_id: str, user: User) -> ActivityCase:
+    activity = await get_activity(db, activity_id)
+    if not activity:
+        raise ValueError("Activity not found")
+
+    if activity.status != ActivityStatus.APPROVED:
+        raise ValueError("Activity is not in APPROVED status")
+
+    if activity.creator_id != user.id and not _is_admin(user):
+        raise PermissionError("Only the creator or ADMIN can start this activity")
+
+    activity.status = ActivityStatus.IN_PROGRESS
+    await db.flush()
+    await db.refresh(activity)
+    return await get_activity(db, activity.id)
+
+
 async def list_participants(db: AsyncSession, activity_id: str) -> list[dict]:
     activity = await get_activity(db, activity_id)
     if not activity:
