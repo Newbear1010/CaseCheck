@@ -1,12 +1,13 @@
 """Attendance service layer."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import secrets
 from fastapi import HTTPException, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import ActivityCase, ActivityStatus
-from app.models.attendance import AttendanceRecord, AttendanceStatus, QRCode
+from app.models.attendance import AttendanceRecord, AttendanceSession, AttendanceStatus, QRCode
 from app.models.user import User
 from app.services.qrcode_service import generate_qr_code, validate_qr_code
 
@@ -63,9 +64,27 @@ async def register_for_activity(
 
 async def check_in(db: AsyncSession, user: User, qr_code: str, notes: str | None = None) -> AttendanceRecord:
     payload = validate_qr_code(qr_code)
-    activity_id = payload.get("activity_id")
-    if not activity_id:
+    activity_id = payload.get("event_id") or payload.get("activity_id")
+    gate_id = payload.get("gate_id")
+    session_token = payload.get("session_token")
+    if not activity_id or not gate_id or not session_token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid QR code payload")
+
+    activity = await _get_activity(db, activity_id)
+    if activity.status != ActivityStatus.IN_PROGRESS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Activity is not currently in progress")
+
+    session_result = await db.execute(
+        select(AttendanceSession).where(
+            (AttendanceSession.session_token == session_token)
+            & (AttendanceSession.activity_id == activity_id)
+            & (AttendanceSession.gate_id == gate_id)
+            & (AttendanceSession.expires_at >= datetime.now(timezone.utc))
+        )
+    )
+    session = session_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="QR code has expired")
 
     record = await db.execute(
         select(AttendanceRecord).where(
@@ -74,12 +93,30 @@ async def check_in(db: AsyncSession, user: User, qr_code: str, notes: str | None
     )
     attendance = record.scalar_one_or_none()
     if not attendance:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attendance record not found")
+        if activity.current_participants >= activity.max_participants:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Activity is full")
+        attendance = AttendanceRecord(
+            activity_id=activity_id,
+            user_id=user.id,
+            status=AttendanceStatus.REGISTERED,
+            registered_at=datetime.now(timezone.utc),
+            location_verified=False,
+        )
+        activity.current_participants += 1
+        db.add(attendance)
+        await db.flush()
+
+    if attendance.status == AttendanceStatus.CANCELLED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Registration is cancelled")
+
+    if attendance.status in [AttendanceStatus.CHECKED_IN, AttendanceStatus.CHECKED_OUT]:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already checked in")
 
     attendance.status = AttendanceStatus.CHECKED_IN
     attendance.checked_in_at = datetime.now(timezone.utc)
     attendance.qr_code_used = qr_code
     attendance.check_in_method = "QR"
+    attendance.check_in_gate_id = gate_id
     attendance.notes = notes
 
     await db.flush()
@@ -89,7 +126,7 @@ async def check_in(db: AsyncSession, user: User, qr_code: str, notes: str | None
 
 async def check_out(db: AsyncSession, user: User, qr_code: str, notes: str | None = None) -> AttendanceRecord:
     payload = validate_qr_code(qr_code)
-    activity_id = payload.get("activity_id")
+    activity_id = payload.get("event_id") or payload.get("activity_id")
     if not activity_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid QR code payload")
 
@@ -155,26 +192,40 @@ async def generate_activity_qr(
     activity_id: str,
     user: User,
     code_type: str,
-    valid_from: datetime,
-    valid_until: datetime,
     max_uses: int | None,
+    gate_id: str,
 ) -> QRCode:
     activity = await _get_activity(db, activity_id)
 
     if activity.creator_id != user.id and not _is_admin(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to generate QR codes")
+    if activity.status != ActivityStatus.IN_PROGRESS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Activity is not in progress")
 
-    _, jwt_string = generate_qr_code(activity_id, code_type, valid_from, valid_until)
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(seconds=60)
+    session_token = secrets.token_hex(32)
+    jwt_string = generate_qr_code(activity_id, gate_id, session_token, code_type, expires_at)
+
+    session = AttendanceSession(
+        activity_id=activity_id,
+        gate_id=gate_id,
+        session_token=session_token,
+        expires_at=expires_at,
+    )
+    db.add(session)
     qr = QRCode(
         activity_id=activity_id,
         code=jwt_string,
-        valid_from=valid_from,
-        valid_until=valid_until,
+        valid_from=now,
+        valid_until=expires_at,
         is_active=True,
         max_uses=max_uses,
         current_uses=0,
         code_type=code_type,
         generated_by_id=user.id,
+        gate_id=gate_id,
+        session_token=session_token,
     )
     db.add(qr)
     await db.flush()
