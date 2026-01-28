@@ -35,17 +35,20 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
   const [qrCode, setQrCode] = useState<QRCodeResponse | null>(null);
   const [qrError, setQrError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshIn, setRefreshIn] = useState(30);
+  const [gateId] = useState('main');
 
   useEffect(() => {
     let isActive = true;
+    let refreshTimer: number | undefined;
+    let tickTimer: number | undefined;
     const generateQr = async () => {
       try {
-        const now = new Date();
-        const validFrom = now.toISOString();
-        const validUntil = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
-        const result = await attendanceService.generateQR(activity.id, 'CHECK_IN', validFrom, validUntil);
+        const result = await attendanceService.generateQR(activity.id, gateId);
         if (isActive) {
           setQrCode(result);
+          setQrError('');
+          setRefreshIn(30);
         }
       } catch (error: any) {
         if (isActive) {
@@ -58,10 +61,16 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
       }
     };
     generateQr();
+    refreshTimer = window.setInterval(generateQr, 30000);
+    tickTimer = window.setInterval(() => {
+      setRefreshIn((prev) => (prev <= 1 ? 30 : prev - 1));
+    }, 1000);
     return () => {
       isActive = false;
+      if (refreshTimer) window.clearInterval(refreshTimer);
+      if (tickTimer) window.clearInterval(tickTimer);
     };
-  }, [activity.id, t.attendance.qrGenerationFailed]);
+  }, [activity.id, gateId, t.attendance.qrGenerationFailed]);
 
   return (
   <div className="fixed inset-0 z-[110] bg-slate-950/90 flex items-center justify-center p-6 backdrop-blur-sm">
@@ -70,6 +79,7 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
         <div className="text-left">
           <h3 className="font-bold text-slate-900">{t.activity.checkInQR}</h3>
           <p className="text-xs text-slate-500">{t.activity.scanForActivityId}: {activity.id}</p>
+          <p className="text-xs text-slate-400">{t.attendance.gateIdLabel}: {gateId}</p>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XCircle size={24} /></button>
       </div>
@@ -91,6 +101,11 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
           <span>{activity.location}</span>
         </div>
         {isLoading && <div className="text-xs text-slate-400">{t.attendance.generatingQr}</div>}
+        {!isLoading && (
+          <div className="text-xs text-slate-500">
+            {t.attendance.qrRefreshIn.replace('{seconds}', String(refreshIn))}
+          </div>
+        )}
         {qrError && <div className="text-xs text-rose-500">{qrError}</div>}
         {qrCode && (
           <div className="bg-slate-100 text-slate-700 text-[10px] font-mono px-3 py-2 rounded-lg break-all border border-slate-200">

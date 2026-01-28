@@ -16,6 +16,7 @@ export interface AttendanceRecord {
   checked_out_at?: string | null;
   qr_code_used?: string | null;
   check_in_method?: string | null;
+  check_in_gate_id?: string | null;
   location_verified: boolean;
   notes?: string | null;
   created_at: string;
@@ -35,6 +36,7 @@ export interface QRCodeResponse {
   id: string;
   activity_id: string;
   code: string;
+  gate_id?: string | null;
   valid_from: string;
   valid_until: string;
   is_active: boolean;
@@ -80,12 +82,11 @@ export const attendanceService = {
     return response.data.data;
   },
 
-  async generateQR(activityId: string, type: string, validFrom: string, validUntil: string, maxUses?: number): Promise<QRCodeResponse> {
+  async generateQR(activityId: string, gateId: string, type: string = 'CHECK_IN', maxUses?: number): Promise<QRCodeResponse> {
     const response = await apiClient.post<SuccessResponse<QRCodeResponse>>('/attendance/qr-code', {
       activity_id: activityId,
+      gate_id: gateId,
       code_type: type,
-      valid_from: validFrom,
-      valid_until: validUntil,
       max_uses: maxUses,
     });
     return response.data.data;

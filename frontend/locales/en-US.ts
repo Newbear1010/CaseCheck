@@ -273,6 +273,8 @@ export const enUS = {
     registrationFailed: 'Registration failed. Please try again.',
     generatingQr: 'Generating QR code...',
     qrGenerationFailed: 'Failed to generate QR code.',
+    qrRefreshIn: 'Refreshing in {seconds}s',
+    gateIdLabel: 'Gate',
     loadAttendanceFailed: 'Unable to load attendance data.',
     loadingAttendance: 'Loading attendance...',
     noAttendanceRecords: 'No attendance records found.',
