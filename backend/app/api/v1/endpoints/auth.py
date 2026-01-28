@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
-from app.core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
+from app.core.security import create_access_token, create_refresh_token, verify_password, get_password_hash, decode_token
+from app.models.user import User, Role
 from app.schemas.user import UserLogin, TokenResponse, UserCreate, UserResponse
 from app.schemas.common import SuccessResponse
 
@@ -27,18 +31,40 @@ async def login(
 
     Returns JWT access token (15 min) and refresh token (7 days)
     """
-    # TODO: Implement user authentication logic
-    # This is a placeholder that demonstrates the OpenAPI schema
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.roles))
+        .where((User.username == credentials.username) | (User.email == credentials.username))
+    )
+    user = result.scalar_one_or_none()
 
-    # Example response structure
+    if not user or not verify_password(credentials.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is disabled",
+        )
+
+    primary_role = user.roles[0].name if user.roles else "USER"
+    access_token = create_access_token(data={"sub": str(user.id), "role": primary_role})
+    refresh_token = create_refresh_token(data={"sub": str(user.id), "role": primary_role})
+
+    user.last_login_at = datetime.now(timezone.utc)
+
     token_data = TokenResponse(
-        access_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        refresh_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        access_token=access_token,
+        refresh_token=refresh_token,
         token_type="bearer",
-        expires_in=900
+        expires_in=900,
     )
 
-    return SuccessResponse(data=token_data)
+    return SuccessResponse(data=token_data, message="Login successful")
 
 
 @router.post(
@@ -61,8 +87,58 @@ async def register(
 
     Creates a new user with the USER role by default
     """
-    # TODO: Implement user registration logic
-    pass
+    existing_username = await db.execute(
+        select(User).where(User.username == user_data.username)
+    )
+    if existing_username.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
+
+    existing_email = await db.execute(
+        select(User).where(User.email == user_data.email)
+    )
+    if existing_email.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    user = User(
+        username=user_data.username,
+        email=user_data.email,
+        password_hash=get_password_hash(user_data.password),
+        full_name=user_data.full_name,
+        phone=user_data.phone,
+        department=user_data.department,
+        is_active=True,
+        is_verified=False,
+    )
+
+    role_result = await db.execute(select(Role).where(Role.name == "USER"))
+    role = role_result.scalar_one_or_none()
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Default role not configured",
+        )
+
+    user.roles.append(role)
+    db.add(user)
+    await db.flush()
+
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user.id)
+    )
+    user = result.scalar_one()
+
+    return SuccessResponse(
+        data=UserResponse.model_validate(user),
+        message="User created",
+    )
 
 
 @router.post(
@@ -76,7 +152,7 @@ async def register(
     }
 )
 async def refresh_token(
-    refresh_token: str,
+    refresh_token: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -84,8 +160,38 @@ async def refresh_token(
 
     Accepts a valid refresh token and returns a new access token
     """
-    # TODO: Implement token refresh logic
-    pass
+    payload = decode_token(refresh_token)
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+
+    user_id = payload.get("sub")
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.roles))
+        .where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+        )
+
+    primary_role = user.roles[0].name if user.roles else "USER"
+    new_access_token = create_access_token(data={"sub": str(user.id), "role": primary_role})
+
+    token_data = TokenResponse(
+        access_token=new_access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=900,
+    )
+
+    return SuccessResponse(data=token_data, message="Token refreshed")
 
 
 @router.post(

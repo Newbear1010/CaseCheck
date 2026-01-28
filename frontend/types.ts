@@ -41,12 +41,14 @@ export interface AttendanceRecord {
 
 export interface ActivityCase {
   id: string;
+  caseNumber?: string;
   parentId?: string;
   title: string;
   description: string;
   status: CaseStatus;
   rejectionReason?: string;
   creatorId: string;
+  activityTypeId?: string;
   createdAt: string;
   startTime: string;
   endTime: string;
@@ -61,6 +63,7 @@ export type PermissionAction =
   | 'activity:edit'
   | 'activity:delete'
   | 'activity:approve'
+  | 'activity:start'
   | 'activity:qr-display'
   | 'activity:check-in'
   | 'activity:report'

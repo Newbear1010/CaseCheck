@@ -1,35 +1,68 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Role } from '../types';
+import authService, { ApiUser } from '../services/authService';
 
 interface AuthContextType {
   user: User | null;
-  login: (role: Role) => void;
-  logout: () => void;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    // Initial state: Simulated "Not Logged In"
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (role: Role) => {
-    // Added missing 'status' property to each mock user to match the User interface
-    const mockUsers: Record<Role, User> = {
-      [Role.ADMIN]: { id: 'admin-1', name: 'Alex Admin', email: 'admin@corp.com', role: Role.ADMIN, department: 'IT Governance', status: 'ACTIVE' },
-      [Role.USER]: { id: 'user-1', name: 'Jane User', email: 'jane@corp.com', role: Role.USER, department: 'Marketing', status: 'ACTIVE' },
-      [Role.GUEST]: { id: 'guest-1', name: 'Guest Visitor', email: 'guest@external.com', role: Role.GUEST, department: 'Visitor', status: 'ACTIVE' },
+  const mapApiUser = (apiUser: ApiUser): User => {
+    const primaryRole = apiUser.roles?.[0]?.name ?? Role.USER;
+    return {
+      id: apiUser.id,
+      name: apiUser.full_name,
+      email: apiUser.email,
+      role: primaryRole as Role,
+      department: apiUser.department || '',
+      status: apiUser.is_active ? 'ACTIVE' : 'INACTIVE',
     };
-    setUser(mockUsers[role]);
   };
 
-  const logout = () => setUser(null);
+  useEffect(() => {
+    const initAuth = async () => {
+      if (!authService.isAuthenticated()) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const apiUser = await authService.getCurrentUser();
+        setUser(mapApiUser(apiUser));
+      } catch {
+        await authService.logout();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  const login = async (username: string, password: string) => {
+    await authService.login({ username, password });
+    const apiUser = await authService.getCurrentUser();
+    setUser(mapApiUser(apiUser));
+  };
+
+  const logout = async () => {
+    await authService.logout();
+    setUser(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

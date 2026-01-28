@@ -36,7 +36,7 @@ class ApprovalWorkflow(Base, TimestampMixin):
     new_status: Mapped[Optional[str]] = mapped_column(String(50))
 
     # Metadata
-    metadata: Mapped[Optional[str]] = mapped_column(Text)  # JSON field for additional context
+    approval_metadata: Mapped[Optional[str]] = mapped_column("metadata", Text)  # JSON field for additional context
 
     __table_args__ = (
         Index("idx_approval_activity", "activity_id"),

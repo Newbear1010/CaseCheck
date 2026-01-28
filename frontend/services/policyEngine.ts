@@ -34,6 +34,11 @@ export const checkPolicy = (
     case 'activity:create': return { allowed: true };
     case 'activity:approve':
       return { allowed: false, reason: 'Only administrators can approve activities.', requiredRole: Role.ADMIN };
+    case 'activity:start':
+      if (isOwner && resource?.status === CaseStatus.APPROVED) {
+        return { allowed: true };
+      }
+      return { allowed: false, reason: 'Only the creator or administrators can start approved activities.' };
     case 'activity:qr-display':
       if ((isOwner || isManager) && resource?.status === CaseStatus.IN_PROGRESS) {
         return { allowed: true };

@@ -1,14 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Users,
   Clock,
-  CheckCircle,
   AlertTriangle,
   FileText,
-  History,
-  Lock,
   Edit3,
   QrCode,
   Download,
@@ -17,13 +14,15 @@ import {
   RefreshCw,
   XCircle,
   Maximize2,
-  ExternalLink,
   MapPin
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { PermissionWrapper } from '../components/PermissionWrapper';
 import { CaseStatus, ActivityCase } from '../types';
 import { CheckInModule } from './CheckInModule';
+import QRCode from 'react-qr-code';
+import { attendanceService, AttendanceRecord, AttendanceStats, QRCodeResponse } from '../services/attendanceService';
+import { activityService } from '../services/activityService';
 
 interface CaseDetailProps {
   activity: ActivityCase;
@@ -33,6 +32,36 @@ interface CaseDetailProps {
 
 const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> = ({ activity, onClose }) => {
   const { t } = useI18n();
+  const [qrCode, setQrCode] = useState<QRCodeResponse | null>(null);
+  const [qrError, setQrError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+    const generateQr = async () => {
+      try {
+        const now = new Date();
+        const validFrom = now.toISOString();
+        const validUntil = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+        const result = await attendanceService.generateQR(activity.id, 'CHECK_IN', validFrom, validUntil);
+        if (isActive) {
+          setQrCode(result);
+        }
+      } catch (error: any) {
+        if (isActive) {
+          setQrError(error?.response?.data?.message || t.attendance.qrGenerationFailed);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+    generateQr();
+    return () => {
+      isActive = false;
+    };
+  }, [activity.id, t.attendance.qrGenerationFailed]);
 
   return (
   <div className="fixed inset-0 z-[110] bg-slate-950/90 flex items-center justify-center p-6 backdrop-blur-sm">
@@ -46,17 +75,13 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
       </div>
 
       <div className="bg-slate-50 aspect-square rounded-2xl flex items-center justify-center border-2 border-slate-100 relative group">
-        {/* Mocking a high-fidelity QR Code with CSS and SVG */}
-        <div className="w-48 h-48 bg-white p-4 rounded-xl shadow-inner border border-slate-200 grid grid-cols-4 grid-rows-4 gap-1">
-          {Array.from({ length: 16 }).map((_, i) => (
-            <div key={i} className={`${Math.random() > 0.4 ? 'bg-slate-900' : 'bg-transparent'} rounded-sm`}></div>
-          ))}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-white p-2 rounded-lg shadow-md border border-slate-100">
-              <QrCode size={32} className="text-blue-600" />
-            </div>
+        {qrCode ? (
+          <div className="bg-white p-4 rounded-xl shadow-inner border border-slate-200">
+            <QRCode value={qrCode.code ? `${window.location.origin}/check-in?code=${encodeURIComponent(qrCode.code)}` : ''} size={180} />
           </div>
-        </div>
+        ) : (
+          <div className="text-xs text-slate-400">{t.attendance.generatingQr}</div>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -65,6 +90,13 @@ const QRDisplayModal: React.FC<{ activity: ActivityCase, onClose: () => void }> 
           <MapPin size={12} />
           <span>{activity.location}</span>
         </div>
+        {isLoading && <div className="text-xs text-slate-400">{t.attendance.generatingQr}</div>}
+        {qrError && <div className="text-xs text-rose-500">{qrError}</div>}
+        {qrCode && (
+          <div className="bg-slate-100 text-slate-700 text-[10px] font-mono px-3 py-2 rounded-lg break-all border border-slate-200">
+            {qrCode.code}
+          </div>
+        )}
       </div>
 
       <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center space-x-2 hover:bg-slate-800 transition-colors">
@@ -81,15 +113,67 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
   const [activeTab, setActiveTab] = useState('overview');
   const [showScanner, setShowScanner] = useState(false);
   const [showQRDisplay, setShowQRDisplay] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState<ActivityCase>(activity);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState('');
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceError, setAttendanceError] = useState('');
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceSearch, setAttendanceSearch] = useState('');
 
-  if (showScanner) return <CheckInModule onDismiss={() => setShowScanner(false)} />;
+  useEffect(() => {
+    if (activeTab !== 'attendance') return;
+    let isActive = true;
+    const loadAttendance = async () => {
+      setAttendanceLoading(true);
+      setAttendanceError('');
+      try {
+        const [stats, records] = await Promise.all([
+          attendanceService.getStats(currentActivity.id),
+          attendanceService.getRecords(currentActivity.id),
+        ]);
+        if (isActive) {
+          setAttendanceStats(stats);
+          setAttendanceRecords(records);
+        }
+      } catch (error: any) {
+        if (isActive) {
+          setAttendanceError(error?.response?.data?.message || t.attendance.loadAttendanceFailed);
+        }
+      } finally {
+        if (isActive) {
+          setAttendanceLoading(false);
+        }
+      }
+    };
+    loadAttendance();
+    return () => {
+      isActive = false;
+    };
+  }, [activeTab, currentActivity.id, t.attendance.loadAttendanceFailed]);
 
-  const isRejected = activity.status === CaseStatus.REJECTED;
-  const isOngoing = activity.status === CaseStatus.IN_PROGRESS;
+  if (showScanner) return <CheckInModule activityId={currentActivity.id} onDismiss={() => setShowScanner(false)} />;
+
+  const isRejected = currentActivity.status === CaseStatus.REJECTED;
+  const isApproved = currentActivity.status === CaseStatus.APPROVED;
+  const isOngoing = currentActivity.status === CaseStatus.IN_PROGRESS;
+  const displayId = currentActivity.caseNumber || currentActivity.id;
+  const filteredAttendanceRecords = attendanceRecords.filter(record =>
+    record.user_id.toLowerCase().includes(attendanceSearch.toLowerCase())
+  );
+
+  const attendanceStatusStyles: Record<string, string> = {
+    REGISTERED: 'bg-amber-50 text-amber-700',
+    CHECKED_IN: 'bg-green-50 text-green-700',
+    CHECKED_OUT: 'bg-slate-100 text-slate-600',
+    ABSENT: 'bg-rose-50 text-rose-700',
+    CANCELLED: 'bg-slate-100 text-slate-500',
+  };
 
   return (
     <div className="space-y-6">
-      {showQRDisplay && <QRDisplayModal activity={activity} onClose={() => setShowQRDisplay(false)} />}
+      {showQRDisplay && <QRDisplayModal activity={currentActivity} onClose={() => setShowQRDisplay(false)} />}
 
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="flex items-center space-x-2 text-slate-500 font-medium hover:text-slate-700 transition-colors">
@@ -100,7 +184,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
         <div className="flex items-center space-x-3">
           {isRejected ? (
             <button
-              onClick={() => onRemake(activity)}
+              onClick={() => onRemake(currentActivity)}
               className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all"
             >
               <RefreshCw size={16} />
@@ -108,15 +192,39 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
             </button>
           ) : (
             <>
-              <PermissionWrapper action="activity:edit" resource={activity} fallback="disable">
+              <PermissionWrapper action="activity:edit" resource={currentActivity} fallback="disable">
                 <button className="flex items-center space-x-2 bg-white border px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors">
                   <Edit3 size={16} />
                   <span>{t.activity.editRecord}</span>
                 </button>
               </PermissionWrapper>
 
+              {isApproved && (
+                <PermissionWrapper action="activity:start" resource={currentActivity} fallback="hide">
+                  <button
+                    onClick={async () => {
+                      setIsStarting(true);
+                      setStartError('');
+                      try {
+                        const updated = await activityService.start(currentActivity.id);
+                        setCurrentActivity(updated);
+                      } catch (error: any) {
+                        setStartError(error?.response?.data?.detail || t.activity.startFailed);
+                      } finally {
+                        setIsStarting(false);
+                      }
+                    }}
+                    className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 shadow-md transition-all disabled:opacity-60"
+                    disabled={isStarting}
+                  >
+                    <RefreshCw size={16} />
+                    <span>{isStarting ? t.activity.starting : t.activity.startActivity}</span>
+                  </button>
+                </PermissionWrapper>
+              )}
+
               {isOngoing && (
-                <PermissionWrapper action="activity:qr-display" resource={activity} fallback="hide">
+                <PermissionWrapper action="activity:qr-display" resource={currentActivity} fallback="hide">
                   <button
                     onClick={() => setShowQRDisplay(true)}
                     className="flex items-center space-x-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-md transition-all"
@@ -129,7 +237,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
             </>
           )}
 
-          <PermissionWrapper action="activity:check-in" resource={activity} fallback="hide">
+          <PermissionWrapper action="activity:check-in" resource={currentActivity} fallback="hide">
              <button onClick={() => setShowScanner(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center space-x-2 hover:bg-blue-700">
               <Maximize2 size={16} />
               <span>{t.activity.openScanner}</span>
@@ -144,7 +252,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
           <div>
             <h3 className="font-bold text-rose-900">{t.activity.caseRejectedReadOnly}</h3>
             <p className="text-rose-700 text-sm mt-1">{t.activity.reason}: {activity.rejectionReason || 'Incomplete risk assessment documentation.'}</p>
-            <p className="text-rose-600/60 text-xs mt-3 italic font-medium">{t.activity.archiveReferenceId}: {activity.id}</p>
+            <p className="text-rose-600/60 text-xs mt-3 italic font-medium">{t.activity.archiveReferenceId}: {displayId}</p>
           </div>
         </div>
       )}
@@ -153,7 +261,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
         <div className="p-8">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <span className="mono text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded tracking-widest border">#{activity.id}</span>
+              <span className="mono text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded tracking-widest border">#{displayId}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                 activity.status === CaseStatus.REJECTED ? 'bg-rose-100 text-rose-700' :
                 activity.status === CaseStatus.IN_PROGRESS ? 'bg-green-100 text-green-700' :
@@ -165,8 +273,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <span>{translate('activity.createdOn', { date: activity.createdAt })}</span>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">{activity.title}</h1>
-          <p className="text-slate-500 mt-2 max-w-2xl text-sm leading-relaxed">{activity.description}</p>
+          <h1 className="text-3xl font-bold text-slate-900">{currentActivity.title}</h1>
+          <p className="text-slate-500 mt-2 max-w-2xl text-sm leading-relaxed">{currentActivity.description}</p>
+          {startError && <p className="text-sm text-rose-600 mt-3">{startError}</p>}
         </div>
 
         <nav className="bg-slate-50 px-8 border-t border-slate-100 flex space-x-8 overflow-x-auto no-scrollbar">
@@ -204,16 +313,16 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <div className="grid grid-cols-2 gap-6">
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
                   <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.activity.assessedRisk}</div>
-                  <div className={`text-sm font-bold flex items-center space-x-2 ${activity.riskLevel === 'HIGH' ? 'text-rose-600' : 'text-slate-700'}`}>
+                  <div className={`text-sm font-bold flex items-center space-x-2 ${currentActivity.riskLevel === 'HIGH' ? 'text-rose-600' : 'text-slate-700'}`}>
                     <AlertTriangle size={14} />
-                    <span>{t.risk[activity.riskLevel]} IMPACT</span>
+                    <span>{t.risk[currentActivity.riskLevel]} IMPACT</span>
                   </div>
                 </div>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
                   <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t.activity.registration}</div>
                   <div className="text-sm font-bold text-slate-700 flex items-center space-x-2">
                     <Users size={14} />
-                    <span>{activity.members.length} {t.activity.expected}</span>
+                    <span>{currentActivity.members.length} {t.activity.expected}</span>
                   </div>
                 </div>
               </div>
@@ -221,7 +330,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
               <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
                 <h4 className="text-xs font-bold text-blue-700 mb-2 uppercase">{t.activity.logisticsInformation}</h4>
                 <div className="grid grid-cols-2 gap-4 text-xs">
-                   <div><span className="text-blue-600/60">{t.activity.location}:</span> <span className="text-blue-900 font-bold ml-1">{activity.location}</span></div>
+                   <div><span className="text-blue-600/60">{t.activity.location}:</span> <span className="text-blue-900 font-bold ml-1">{currentActivity.location}</span></div>
                    <div><span className="text-blue-600/60">{t.activity.duration}:</span> <span className="text-blue-900 font-bold ml-1">8 Hours</span></div>
                 </div>
               </div>
@@ -261,17 +370,26 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
                 <div className="flex items-center space-x-4">
                   <div className="bg-green-50 text-green-600 px-4 py-2 rounded-xl border border-green-100">
                     <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.present}</div>
-                    <div className="text-xl font-bold">12 <span className="text-xs opacity-50 font-normal">/ 15</span></div>
+                    <div className="text-xl font-bold">
+                      {attendanceStats?.checked_in ?? 0}{' '}
+                      <span className="text-xs opacity-50 font-normal">/ {attendanceStats?.total_registered ?? 0}</span>
+                    </div>
                   </div>
                   <div className="bg-slate-50 text-slate-600 px-4 py-2 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.visitors}</div>
-                    <div className="text-xl font-bold">3</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t.attendance.checkedOut}</div>
+                    <div className="text-xl font-bold">{attendanceStats?.checked_out ?? 0}</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" placeholder={t.attendance.searchAttendee} className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs w-48" />
+                    <input
+                      type="text"
+                      value={attendanceSearch}
+                      onChange={(event) => setAttendanceSearch(event.target.value)}
+                      placeholder={t.attendance.searchAttendee}
+                      className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-xs w-48"
+                    />
                   </div>
                 </div>
               </div>
@@ -287,22 +405,37 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-sm">
-                       {[
-                         { name: 'Alex Admin', role: 'Staff', time: '09:05 AM', type: 'FaceID' },
-                         { name: 'Jane User', role: 'Staff', time: '09:12 AM', type: 'QR Scan' },
-                         { name: 'Visitor: John Doe', role: 'External', time: '09:45 AM', type: 'Form' },
-                       ].map((item, idx) => (
-                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-bold text-slate-900">{item.name}</td>
-                            <td className="px-6 py-4">
-                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.role === 'Staff' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-                                  {item.role}
-                               </span>
-                            </td>
-                            <td className="px-6 py-4 text-slate-500">{item.time}</td>
-                            <td className="px-6 py-4 text-xs text-slate-400 italic">{item.type}</td>
+                       {attendanceLoading && (
+                         <tr>
+                           <td colSpan={4} className="px-6 py-6 text-center text-xs text-slate-400">{t.attendance.loadingAttendance}</td>
                          </tr>
-                       ))}
+                       )}
+                       {!attendanceLoading && attendanceError && (
+                         <tr>
+                           <td colSpan={4} className="px-6 py-6 text-center text-xs text-rose-500">{attendanceError}</td>
+                         </tr>
+                       )}
+                       {!attendanceLoading && !attendanceError && filteredAttendanceRecords.length === 0 && (
+                         <tr>
+                           <td colSpan={4} className="px-6 py-6 text-center text-xs text-slate-400">{t.attendance.noAttendanceRecords}</td>
+                         </tr>
+                       )}
+                       {!attendanceLoading && !attendanceError && filteredAttendanceRecords.map((record) => {
+                         const timeValue = record.checked_in_at || record.registered_at;
+                         const timeLabel = timeValue ? new Date(timeValue).toLocaleString() : '-';
+                         return (
+                           <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 font-bold text-slate-900">{record.user_id}</td>
+                              <td className="px-6 py-4">
+                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${attendanceStatusStyles[record.status] || 'bg-slate-100 text-slate-500'}`}>
+                                    {record.status}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-slate-500">{timeLabel}</td>
+                              <td className="px-6 py-4 text-xs text-slate-400 italic">{record.check_in_method || '-'}</td>
+                           </tr>
+                         );
+                       })}
                     </tbody>
                  </table>
               </div>
@@ -330,9 +463,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ activity, onBack, onRema
 
         {activeTab === 'members' && (
            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {activity.members.map(memberId => (
+              {currentActivity.members.map(memberId => (
                 <div key={memberId} className="flex items-center space-x-4 p-4 border rounded-xl bg-white hover:shadow-md transition-shadow">
-                   <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">{memberId.charAt(0).toUpperCase()}</div>
+                  <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">{memberId.charAt(0).toUpperCase()}</div>
                    <div>
                       <div className="text-sm font-bold text-slate-900">{memberId === 'user-1' ? 'Jane User' : 'Team Member'}</div>
                       <div className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{memberId}</div>

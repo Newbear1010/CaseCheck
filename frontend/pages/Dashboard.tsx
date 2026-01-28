@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../context/I18nContext';
 import { Role, CaseStatus, ActivityCase } from '../types';
 import { PermissionWrapper } from '../components/PermissionWrapper';
+import { activityService } from '../services/activityService';
 import {
   FileCheck,
   Clock,
@@ -46,31 +47,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
   };
   const stats = statsByRole[role];
 
-  // Mock data for dashboard
-  const recentActivities = [
-    {
-      id: 'C-9021',
-      title: 'Q3 Product Launch Event',
-      status: CaseStatus.IN_PROGRESS,
-      date: '2024-05-20',
-      description: 'Global launch event for the new enterprise suite involving 200+ partners.',
-      creatorId: 'user-1',
-      riskLevel: 'MEDIUM' as const,
-      members: ['user-1', 'user-2', 'user-3'],
-      location: 'Main Auditorium'
-    },
-    {
-      id: 'C-9018',
-      title: 'Internal Audit Seminar',
-      status: CaseStatus.APPROVED,
-      date: '2024-05-18',
-      description: 'Annual regulatory compliance check and training.',
-      creatorId: 'user-1',
-      riskLevel: 'LOW' as const,
-      members: ['user-4'],
-      location: 'Conference Room A'
-    },
-  ];
+  const [recentActivities, setRecentActivities] = useState<ActivityCase[]>([]);
+  const [activityError, setActivityError] = useState('');
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const { items } = await activityService.list({ page: 1, per_page: 5 });
+        setRecentActivities(items);
+      } catch (error: any) {
+        setActivityError(error?.response?.data?.detail || 'Unable to load activities.');
+      }
+    };
+
+    loadActivities();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -107,7 +98,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {recentActivities.map(activity => (
+            {activityError && (
+              <div className="p-4 text-sm text-rose-600">{activityError}</div>
+            )}
+            {!activityError && recentActivities.map(activity => (
               <div
                 key={activity.id}
                 onClick={() => onSelectCase(activity)}
@@ -119,7 +113,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onSelectCase }
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-slate-900">{activity.title}</div>
-                    <div className="text-xs text-slate-500">{t.dashboard.caseId}: {activity.id} • {activity.date}</div>
+                    <div className="text-xs text-slate-500">{t.dashboard.caseId}: {activity.caseNumber || activity.id} • {activity.createdAt.split('T')[0]}</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
