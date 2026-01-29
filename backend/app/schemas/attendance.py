@@ -59,6 +59,7 @@ class AttendanceRecordResponse(BaseModel):
     # Check-in details
     qr_code_used: Optional[str] = Field(None, description="QR code used for check-in")
     check_in_method: Optional[str] = Field(None, description="Check-in method (QR, MANUAL, AUTO)")
+    check_in_gate_id: Optional[str] = Field(None, description="Gate ID used for check-in")
     location_verified: bool = Field(..., description="Whether location was verified")
 
     # Metadata
@@ -91,17 +92,15 @@ class QRCodeCreate(BaseModel):
     """Schema for creating QR code"""
 
     activity_id: str = Field(..., description="Activity case ID")
-    valid_from: datetime = Field(..., description="QR code valid from")
-    valid_until: datetime = Field(..., description="QR code valid until")
-    code_type: str = Field(..., description="Code type (CHECK_IN, CHECK_OUT, BOTH)")
+    gate_id: str = Field(..., description="Gate ID")
+    code_type: str = Field("CHECK_IN", description="Code type (CHECK_IN, CHECK_OUT, BOTH)")
     max_uses: Optional[int] = Field(None, ge=1, description="Maximum number of uses")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "activity_id": "activity-uuid",
-                "valid_from": "2024-06-15T07:00:00Z",
-                "valid_until": "2024-06-15T09:00:00Z",
+                "gate_id": "main",
                 "code_type": "CHECK_IN",
                 "max_uses": 100
             }
@@ -114,6 +113,7 @@ class QRCodeResponse(BaseModel):
     id: str = Field(..., description="QR code ID")
     activity_id: str = Field(..., description="Activity case ID")
     code: str = Field(..., description="QR code string")
+    gate_id: Optional[str] = Field(None, description="Gate ID")
 
     # Validity
     valid_from: datetime = Field(..., description="Valid from timestamp")

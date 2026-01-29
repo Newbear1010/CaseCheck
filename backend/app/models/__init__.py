@@ -1,7 +1,7 @@
 from .base import Base
 from .user import User, Role, Permission, UserRole
 from .activity import ActivityCase, ActivityType
-from .attendance import AttendanceRecord, QRCode
+from .attendance import AttendanceRecord, AttendanceSession, QRCode
 from .approval import ApprovalWorkflow
 from .audit import AuditLog
 from .policy import PolicyRule
@@ -15,6 +15,7 @@ __all__ = [
     "ActivityCase",
     "ActivityType",
     "AttendanceRecord",
+    "AttendanceSession",
     "QRCode",
     "ApprovalWorkflow",
     "AuditLog",

@@ -36,14 +36,36 @@ test_registered_can_checkin if {
     }
 }
 
-# Unregistered user cannot check in
+# Unregistered user can check in (auto-register)
 
-test_unregistered_cannot_checkin if {
-    not attendance.allow with input as {
+test_unregistered_can_checkin if {
+    attendance.allow with input as {
         "action": "attendance:checkin",
         "subject": {"id": "user-1", "role": "USER"},
         "resource": {"activity_status": "IN_PROGRESS"},
         "context": {"is_registered": false}
+    }
+}
+
+# Checked-in user can check out
+
+test_checked_in_can_checkout if {
+    attendance.allow with input as {
+        "action": "attendance:checkout",
+        "subject": {"id": "user-1", "role": "USER"},
+        "resource": {},
+        "context": {"is_checked_in": true}
+    }
+}
+
+# Not checked-in user cannot check out
+
+test_not_checked_in_cannot_checkout if {
+    not attendance.allow with input as {
+        "action": "attendance:checkout",
+        "subject": {"id": "user-1", "role": "USER"},
+        "resource": {},
+        "context": {"is_checked_in": false}
     }
 }
 

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
-from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Text, Boolean, Index
+from sqlalchemy import String, DateTime, Enum as SQLEnum, ForeignKey, Text, Boolean, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
 from .base import Base, TimestampMixin
@@ -34,6 +34,7 @@ class AttendanceRecord(Base, TimestampMixin):
     registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     checked_in_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     checked_out_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    check_in_gate_id: Mapped[Optional[str]] = mapped_column(String(50))
 
     # QR code tracking
     qr_code_used: Mapped[Optional[str]] = mapped_column(Text)
@@ -56,6 +57,7 @@ class AttendanceRecord(Base, TimestampMixin):
     __table_args__ = (
         Index("idx_attendance_activity_user", "activity_id", "user_id"),
         Index("idx_attendance_status", "status"),
+        UniqueConstraint("activity_id", "user_id", name="uq_attendance_activity_user"),
     )
 
 
@@ -67,6 +69,8 @@ class QRCode(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     activity_id: Mapped[str] = mapped_column(ForeignKey("activity_cases.id", ondelete="CASCADE"), nullable=False, index=True)
     code: Mapped[str] = mapped_column(Text, unique=True, nullable=False, index=True)
+    gate_id: Mapped[Optional[str]] = mapped_column(String(50))
+    session_token: Mapped[Optional[str]] = mapped_column(String(64), index=True)
 
     # Validity period
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -94,3 +98,17 @@ class QRCode(Base, TimestampMixin):
         Index("idx_qrcode_validity", "valid_from", "valid_until"),
         Index("idx_qrcode_active", "is_active"),
     )
+
+
+class AttendanceSession(Base, TimestampMixin):
+    """AttendanceSession model - short-lived QR sessions for gate validation"""
+
+    __tablename__ = "attendance_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    activity_id: Mapped[str] = mapped_column(ForeignKey("activity_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    gate_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    session_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    activity: Mapped["ActivityCase"] = relationship("ActivityCase")

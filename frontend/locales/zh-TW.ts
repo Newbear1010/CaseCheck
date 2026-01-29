@@ -273,6 +273,8 @@ export const zhTW = {
     registrationFailed: '登記失敗，請再試一次。',
     generatingQr: '正在產生 QR Code...',
     qrGenerationFailed: '無法產生 QR Code。',
+    qrRefreshIn: '{seconds} 秒後更新',
+    gateIdLabel: '閘門',
     loadAttendanceFailed: '無法載入出席資料。',
     loadingAttendance: '載入出席資料中...',
     noAttendanceRecords: '找不到出席記錄。',

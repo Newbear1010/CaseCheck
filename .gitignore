@@ -26,3 +26,7 @@ dist-ssr
 CLAUDE.md
 AGENTS.md
 /issues
+
+# Env files
+.env
+.env.test_checkin

@@ -1,16 +1,20 @@
 """Policy Enforcement Point (PEP) middleware."""
 
 from typing import Callable, Optional
+import json
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.security import decode_token
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from sqlalchemy import select
 from app.models.activity import ActivityCase
+from app.models.attendance import AttendanceRecord, AttendanceStatus
 from app.services.opa_client import opa_client, PolicyInput
+import jwt
 
 
 METHOD_ACTION_MAP = {
@@ -61,6 +65,7 @@ class PEPMiddleware(BaseHTTPMiddleware):
 
         action = self._determine_action(request)
         resource_context = await self._get_resource_context(request)
+        attendance_context = await self._get_attendance_context(request, user_context)
 
         policy_input = PolicyInput(
             subject=user_context,
@@ -70,6 +75,7 @@ class PEPMiddleware(BaseHTTPMiddleware):
                 "timestamp": request.headers.get("x-request-time"),
                 "ip_address": request.client.host if request.client else None,
                 "user_agent": request.headers.get("user-agent"),
+                **attendance_context,
             },
         )
 
@@ -145,6 +151,8 @@ class PEPMiddleware(BaseHTTPMiddleware):
             return "attendance:checkin"
         if "/check-out" in path:
             return "attendance:checkout"
+        if "/register" in path and path.startswith("/v1/attendance"):
+            return "attendance:register"
         if "/qr-code" in path and method == "POST":
             return "attendance:generate_qr"
         if "/qr-code" in path and method == "GET":
@@ -157,6 +165,72 @@ class PEPMiddleware(BaseHTTPMiddleware):
     async def _get_resource_context(self, request: Request) -> dict:
         path = request.url.path
         parts = path.strip("/").split("/")
+        method = request.method
+
+        if path.startswith("/v1/attendance/qr-code") and method == "POST":
+            body = await self._get_request_json(request)
+            activity_id = body.get("activity_id")
+            if activity_id:
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(
+                        select(ActivityCase).where(ActivityCase.id == activity_id)
+                    )
+                    activity = result.scalar_one_or_none()
+                    if activity:
+                        return {
+                            "id": activity.id,
+                            "creator_id": activity.creator_id,
+                            "status": getattr(activity.status, "value", activity.status),
+                        }
+
+        if path == "/v1/attendance/register" and method == "POST":
+            body = await self._get_request_json(request)
+            activity_id = body.get("activity_id")
+            if activity_id:
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(
+                        select(ActivityCase).where(ActivityCase.id == activity_id)
+                    )
+                    activity = result.scalar_one_or_none()
+                    if activity:
+                        return {
+                            "id": activity.id,
+                            "creator_id": activity.creator_id,
+                            "status": getattr(activity.status, "value", activity.status),
+                            "activity_status": getattr(activity.status, "value", activity.status),
+                        }
+
+        if path.startswith("/v1/attendance/activity") and len(parts) >= 4:
+            activity_id = parts[3]
+            async with AsyncSessionLocal() as session:
+                result = await session.execute(
+                    select(ActivityCase).where(ActivityCase.id == activity_id)
+                )
+                activity = result.scalar_one_or_none()
+                if activity:
+                    return {
+                        "id": activity.id,
+                        "creator_id": activity.creator_id,
+                        "status": getattr(activity.status, "value", activity.status),
+                        "activity_status": getattr(activity.status, "value", activity.status),
+                    }
+
+        if path in ["/v1/attendance/check-in", "/v1/attendance/check-out"]:
+            payload = await self._decode_qr_payload(request)
+            activity_id = payload.get("event_id") or payload.get("activity_id")
+            if activity_id:
+                async with AsyncSessionLocal() as session:
+                    result = await session.execute(
+                        select(ActivityCase).where(ActivityCase.id == activity_id)
+                    )
+                    activity = result.scalar_one_or_none()
+                    if activity:
+                        return {
+                            "id": activity.id,
+                            "creator_id": activity.creator_id,
+                            "activity_status": getattr(activity.status, "value", activity.status),
+                        }
+
         if len(parts) >= 3 and parts[0] == "v1" and parts[1] == "activities":
             activity_id = parts[2]
             if activity_id != "types":
@@ -173,3 +247,54 @@ class PEPMiddleware(BaseHTTPMiddleware):
                             "risk_level": getattr(activity.risk_level, "value", activity.risk_level),
                         }
         return {}
+
+    async def _get_attendance_context(self, request: Request, user_context: dict) -> dict:
+        path = request.url.path
+        if path not in ["/v1/attendance/check-in", "/v1/attendance/check-out"]:
+            return {}
+
+        payload = await self._decode_qr_payload(request)
+        activity_id = payload.get("event_id") or payload.get("activity_id")
+        if not activity_id or not user_context:
+            return {}
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(AttendanceRecord).where(
+                    (AttendanceRecord.activity_id == activity_id)
+                    & (AttendanceRecord.user_id == user_context.get("id"))
+                )
+            )
+            record = result.scalar_one_or_none()
+
+        return {
+            "is_registered": record is not None,
+            "is_checked_in": record is not None and record.status == AttendanceStatus.CHECKED_IN,
+        }
+
+    async def _get_request_json(self, request: Request) -> dict:
+        if request.method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+            request._body = body
+            if not body:
+                return {}
+            try:
+                return json.loads(body.decode("utf-8"))
+            except json.JSONDecodeError:
+                return {}
+        return {}
+
+    async def _decode_qr_payload(self, request: Request) -> dict:
+        body = await self._get_request_json(request)
+        qr_code = body.get("qr_code")
+        if not qr_code:
+            return {}
+        try:
+            return jwt.decode(
+                qr_code,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM],
+                options={"verify_exp": False},
+            )
+        except jwt.InvalidTokenError:
+            return {}

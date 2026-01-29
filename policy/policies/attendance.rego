@@ -20,8 +20,8 @@ denial_reasons["Can only register for APPROVED or IN_PROGRESS activities"] if {
 # CHECK-IN
 allow if {
     input.action == "attendance:checkin"
+    input.subject.role in ["USER", "GUEST", "ADMIN"]
     input.resource.activity_status == "IN_PROGRESS"
-    input.context.is_registered == true
 }
 
 denial_reasons["Activity is not currently in progress"] if {
@@ -29,14 +29,11 @@ denial_reasons["Activity is not currently in progress"] if {
     input.resource.activity_status != "IN_PROGRESS"
 }
 
-denial_reasons["Must be registered for this activity"] if {
-    input.action == "attendance:checkin"
-    input.context.is_registered != true
-}
 
 # CHECK-OUT
 allow if {
     input.action == "attendance:checkout"
+    input.subject.role in ["USER", "GUEST", "ADMIN"]
     input.context.is_checked_in == true
 }
 

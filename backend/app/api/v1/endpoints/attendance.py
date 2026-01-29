@@ -195,9 +195,8 @@ async def generate_qr_code(
         activity_id=qr_data.activity_id,
         user=current_user,
         code_type=qr_data.code_type,
-        valid_from=qr_data.valid_from,
-        valid_until=qr_data.valid_until,
         max_uses=qr_data.max_uses,
+        gate_id=qr_data.gate_id,
     )
     return SuccessResponse(data=QRCodeResponse.model_validate(qr))
 
