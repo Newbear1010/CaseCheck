@@ -1,8 +1,10 @@
 # 資料庫設計文檔 (Database Schema)
 
 > **版本**: v1.0
-> **更新日期**: 2026-01-09
+> **更新日期**: 2026-01-29
 > **資料庫**: PostgreSQL 15+
+
+> **狀態說明**: 本文件為設計基準，實際欄位與約束以 `backend/app/models` 與 Alembic migrations 為準。
 
 ---
 

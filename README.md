@@ -135,6 +135,9 @@ createdb casecheck
 # 執行資料庫遷移
 alembic upgrade head
 
+# 啟動 OPA（授權需要）
+opa run --server --watch ../policy
+
 # 啟動開發伺服器
 uvicorn app.main:app --reload
 ```
@@ -187,11 +190,11 @@ uvicorn app.main:app --reload
    gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
    ```
 
-3. **OPA 部署**（選用）
+3. **OPA 部署**（授權必需）
    ```bash
    # 使用 Docker 運行 OPA
    docker run -d -p 8181:8181 openpolicyagent/opa:latest \
-     run --server --addr :8181
+     run --server --addr :8181 --watch /policy
    ```
 
 ## 開發指南
@@ -225,13 +228,8 @@ alembic history
 
 ### 前端路由結構
 
-- `/` - 首頁 / 儀表板
-- `/activities` - 活動列表
-- `/activities/new` - 建立新活動
-- `/activities/:id` - 活動詳情
-- `/attendance/:id` - 出席管理
-- `/approval` - 待審批清單
-- `/profile` - 個人資料
+- `/` - 單頁應用（內部導覽切換儀表板/活動/審批/報表）
+- `/check-in` - QR 掃描簽到入口頁（支援 `?code=...`）
 
 ## 文檔
 
@@ -243,29 +241,20 @@ alembic history
 - [RBAC 設計](docs/RBAC_DESIGN.md) - 角色權限與 OPA 政策
 - [整合指南](docs/INTEGRATION.md) - 前後端整合方式
 
-## 專案狀態
+## 專案狀態（MVP）
 
 ### ✅ 已完成
-- 前端完整 UI 與路由結構
-- 後端 FastAPI 框架與 ORM 模型
-- Pydantic schemas 與 OpenAPI 文檔
-- 資料庫設計與 Alembic 遷移配置
-- JWT 認證機制
-- 完整技術文檔
+- 前端 UI 與主要頁面流程（活動建立/審批/出席/QR 顯示）
+- 後端業務邏輯與 API（活動/審批/出席/QR）
+- OPA 政策整合與 PEP 中介層
+- JWT 認證與授權流程
+- Alembic migrations 與資料庫 schema
+- QR 簽到流程（短效 token + 30 秒刷新）
 
-### 🚧 開發中
-- 後端業務邏輯實作
-- OPA 中介層整合
-- 前後端 API 整合
-- QR Code 掃描功能
-- 單元測試與整合測試
-
-### 📋 規劃中
-- Docker 容器化
-- CI/CD 流程
-- 系統監控與日誌
-- 效能優化
-- 國際化支援
+### 🚧 待優化
+- 自動化測試覆蓋率（單元/整合）
+- 部署自動化與監控告警
+- 部分 UI 邊角流程與文案細節
 
 ## 授權條款
 
