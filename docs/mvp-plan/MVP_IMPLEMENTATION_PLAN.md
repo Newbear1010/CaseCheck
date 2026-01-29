@@ -2,7 +2,7 @@
 
 > **Version**: 1.0
 > **Created**: 2026-01-19
-> **Status**: Ready for Review
+> **Status**: Completed (MVP)
 
 ---
 
@@ -10,17 +10,21 @@
 
 CaseCheck is an enterprise activity case management system with policy-driven authorization. This document outlines the complete implementation plan for delivering a functional MVP.
 
-### Current State Analysis
+### Current State Analysis (Updated)
 
 | Component | Status | Completeness |
 |-----------|--------|--------------|
-| **Frontend UI** | Complete | 95% - All pages built with mock data |
-| **Backend Models** | Complete | 100% - 12 SQLAlchemy models defined |
-| **Backend Schemas** | Complete | 100% - All Pydantic schemas defined |
-| **Backend Endpoints** | Stub | 5% - Signatures only, no logic |
-| **Database Migrations** | Not Started | 0% - Zero migrations |
-| **OPA Policies** | Not Started | 0% - No Rego files |
-| **Tests** | Not Started | 0% - No test files |
+| **Frontend UI** | Complete | 95% - Core flows wired to backend |
+| **Backend Models** | Complete | 100% - Models + QR sessions |
+| **Backend Schemas** | Complete | 100% - Schemas aligned with APIs |
+| **Backend Endpoints** | Complete | 90%+ - Core business logic implemented |
+| **Database Migrations** | Complete | 100% - Alembic migrations in place |
+| **OPA Policies** | Complete | 100% - Policy bundle + tests |
+| **Tests** | Partial | OPA tests + manual verification |
+
+### Status Update (2026-01-29)
+
+本計畫已依 MVP 目標完成。後續文件內容保留作為規劃與驗收參考；實際實作以程式碼與 `docs/` 下最新文件為準。
 
 ### Target State
 

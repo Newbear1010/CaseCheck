@@ -1,7 +1,7 @@
 # 前後端整合文檔 (Frontend-Backend Integration)
 
 > **版本**: v1.0
-> **更新日期**: 2026-01-09
+> **更新日期**: 2026-01-29
 
 ---
 
@@ -33,7 +33,7 @@
 ┌─────────────────────────────────────┐
 │  API Gateway / Reverse Proxy        │
 │  - Nginx / Traefik                  │
-│  - https://api.caseflow.com         │
+│  - https://api.casecheck.example    │
 └──────────────┬──────────────────────┘
                │
                ↓
@@ -62,15 +62,15 @@
 
 ```bash
 # .env.development
-VITE_API_URL=http://localhost:5000/api/v1
-VITE_WS_URL=ws://localhost:5000
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000
 VITE_ENV=development
 ```
 
 ```bash
 # .env.production
-VITE_API_URL=https://api.caseflow.com/v1
-VITE_WS_URL=wss://api.caseflow.com
+VITE_API_URL=https://api.casecheck.example/v1
+VITE_WS_URL=wss://api.casecheck.example
 VITE_ENV=production
 ```
 
@@ -85,7 +85,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 ```bash
 # backend/.env
-DATABASE_URL=postgresql://user:pass@localhost:5432/caseflow
+DATABASE_URL=postgresql://user:pass@localhost:5432/casecheck
 REDIS_URL=redis://localhost:6379/0
 SECRET_KEY=your-secret-key-here
 JWT_ALGORITHM=HS256
@@ -96,13 +96,11 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 CORS_ORIGINS=["http://localhost:3000", "https://casecheck.pages.dev"]
 
 # OPA
-OPA_URL=http://localhost:8181/v1/data/caseflow
+OPA_URL=http://localhost:8181
+OPA_POLICY_PATH=/v1/data/casecheck/authz/response
 
 # MinIO / S3
-MINIO_ENDPOINT=localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=activity-files
+# 其餘整合（如物件儲存）視部署情境選用
 ```
 
 ---
@@ -120,7 +118,7 @@ pip install -r requirements.txt
 alembic upgrade head
 
 # 啟動開發伺服器
-uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **前端**:
@@ -141,7 +139,7 @@ npm run dev  # http://localhost:3000
 ```typescript
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // 創建 Axios 實例
 export const apiClient = axios.create({

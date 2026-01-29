@@ -1,8 +1,10 @@
 # API 規格文檔 (API Specification)
 
 > **版本**: v1.0
-> **更新日期**: 2026-01-09
-> **Base URL**: `https://api.caseflow.com/v1`
+> **更新日期**: 2026-01-29
+> **Base URL**: `http://localhost:8000/v1`（以部署環境為準）
+>
+> **狀態說明**: 以 `http://localhost:8000/openapi.json` 為最新來源，本文作為概要參考。
 
 ---
 

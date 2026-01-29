@@ -17,7 +17,7 @@ FastAPI-based backend for the CaseCheck activity case management system.
 
 - Python 3.11+
 - PostgreSQL 15+
-- OPA (Open Policy Agent) - optional for authorization
+- OPA (Open Policy Agent) - required when PEP authorization is enabled
 
 ### Installation
 
@@ -49,6 +49,9 @@ alembic upgrade head
 
 5. **Run the application**
 ```bash
+# Start OPA (authorization)
+opa run --server --watch ../policy
+
 # Development mode with auto-reload
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
@@ -93,8 +96,8 @@ backend/
 │   │   ├── activity.py
 │   │   ├── attendance.py
 │   │   └── common.py
-│   ├── services/              # Business logic (TODO)
-│   ├── middleware/            # Custom middleware (TODO)
+│   ├── services/              # Business logic
+│   ├── middleware/            # Custom middleware (PEP)
 │   └── main.py               # FastAPI application
 ├── alembic/
 │   ├── versions/             # Migration files
@@ -106,7 +109,7 @@ backend/
 
 ## Database Models
 
-The application includes 12 core tables:
+The application includes 13 core tables:
 
 1. **users** - User accounts
 2. **roles** - User roles (ADMIN, USER, GUEST)
@@ -116,10 +119,11 @@ The application includes 12 core tables:
 6. **activity_types** - Activity categories
 7. **activity_cases** - Activity case records
 8. **attendance_records** - Attendance tracking
-9. **qr_codes** - QR codes for check-in/out
-10. **approval_workflows** - Approval process tracking
-11. **audit_logs** - Immutable audit trail (append-only)
-12. **policy_rules** - OPA policy definitions
+9. **attendance_sessions** - Short-lived QR session tokens
+10. **qr_codes** - QR codes for check-in/out
+11. **approval_workflows** - Approval process tracking
+12. **audit_logs** - Immutable audit trail (append-only)
+13. **policy_rules** - OPA policy definitions
 
 ## API Endpoints
 
@@ -217,8 +221,7 @@ The system uses OPA (Open Policy Agent) for policy-driven authorization:
 
 1. **Role-Based Access Control (RBAC)**: 3 roles with different permissions
 2. **Separation of Duties (SoD)**: Cannot approve own activities
-3. **Time-based Restrictions**: Activity creation limited to 30 days ahead
-4. **Context-aware**: Considers activity status, user roles, and resource ownership
+3. **Context-aware**: Considers activity status, user roles, and resource ownership
 
 ## Environment Variables
 
